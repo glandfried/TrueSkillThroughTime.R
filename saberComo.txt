@@ -1,0 +1,44 @@
+
+Crear Paquetes de R. 
+
+https://www.hsph.harvard.edu/statinformatics/soft/files/buildingrpackages.pdf
+
+1. Cargar en un archivo todas las funciones y clases.
+2. Dado 1 ejecutar package.skeleton("miPaquete")
+3. Completar Descripcion
+4. Completar Namesapce
+5. Completar Todos los archivos .Rd
+6. En terminal: R CMD build myPackageName # genera tar.gz para compartir
+7. En terminal: R CMD INSTALL myPackageName 
+8. En terminal: R CMD check myPackageName  
+
++1. R CMD Rd2pdf packName #hace un pdf a partir de los .Rd
++1. R CMD remove packName
++1. R CMD build --binary packName
+
+
+----
+C in R 
+http://www.ats.ucla.edu/stat/r/library/interface.pdf
+
+
+--
+
+To \submit" to CRAN, simply upload to
+ftp://cran.r-project.org/incoming
+and send email to
+cran@r-project.org
+.  Please do not attach submissions to
+emails, because this will clutter up the mailboxes of half a
+dozen people.
+
+--
+
+Un buen paquete tiene su paper. 
+
+Posibles journals. 
+
+Journal of Statistical Software {
+www.jstatsoft.org
+R Journal {
+journal.r-project.org

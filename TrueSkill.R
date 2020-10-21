@@ -428,6 +428,221 @@ Game$methods(
     return(res)
   }
 )
+
+
+Skill <- setRefClass("Skill",
+  fields = list(
+    forward = "Gaussian",
+    backward = "Gaussian",
+    likelihood = "Gaussian",
+    elapsed = "numeric")
+)
+Skill$methods(
+  initialize = function(forward=Ninf, backward=Ninf, likelihood=Ninf, elapsed=0){
+    forward <<- forward; backward <<- backward
+    likelihood <<- likelihood; elapsed <<- elapsed
+  },
+  posterior = function(){
+    return(forward * likelihood * backward)
+  },
+  posterior_back = function(){
+    return(forward * likelihood)
+  },
+  posterior_for = function(){
+    return(likelihood * backward)
+  }
+)
+
+Agent <- setRefClass("Agent",
+  fields = list(
+    prior = "Rating",
+    message = "Gaussian",
+    last_time = "numeric")
+)
+Agent$methods(
+  initialize = function(prior, message, last_time){
+    prior <<- prior; message <<- message; last_time <<- last_time
+  },
+  receive = function(elapsed){
+    if (!(message==Ninf)){
+      res = message$forget(prior$gamma, elapsed)
+    }else{
+      res = prior$N
+    }
+    return(res)
+  }
+)
+
+clean = function(agents, last_time=FALSE){
+  for (a in names(agents)){
+    agents[[a]]$message = Ninf
+    if (last_time){ agents[[a]]$last_time = -Inf }
+  }
+}
+
+Item <- setRefClass("Item",
+  fields = list(name = "string", likelihood = "Gaussian")
+)
+Item$methods(  
+  initialize = function(name, likelihood){
+    name <<- name; likelihood <<- likelihood }
+)
+
+Team <- setRefClass("Team",
+  fields = list(items = "vector", output = "numeric")
+)
+Team$methods(
+  initialize = function(items, output){
+    items <<- items; output <<- output }
+)
+
+Event <- setRefClass("Event",
+  fields = list(teams = "vector", evidence = "numeric")
+)
+Event$methods(
+  initialize = function(teams, evidence){
+    teams <<- teams; evidence <<- evidence
+  },
+  names = function(){
+    res = list()
+    for (t in seq(length(teams))){
+      vec = c()
+      for (item in teams[t]$items){
+        vec = c(vec, item$name)
+      }
+      res[[i]] = vec
+    }
+    return(res)
+  },
+  result = function(){
+    res = c()
+    for (team in teams){
+      res = c(res, team$output)
+    }
+    return(res)
+  }
+)
+
+compute_elapsed = function(){
+    return(if (last_time == -Inf) 0 else (if (last_time == Inf) 1 else (actual_time - last_time)))
+}
+
+list_unique = function(xss){
+  res = c()
+  for (xs in xss){for (x in xs){res = c(res, x)}}
+  return(unique(res))
+}
+
+Batch <- setRefClass("Batch",
+  fields = list(
+    time = "numeric",
+    events = "vector"
+    skills = "list",
+    agents = "list",
+    env = "Environment")
+)
+Event$methods(
+  initialize = function(composition, results ,time, agents, env){
+    if (length(composition) != length(results)) stop("length(composition)!= length(results)")
+      
+    this_agents = list_unique(composition)
+    skills <<- list()
+    for (a in this_agents){
+      elapsed = compute_elapsed(agents[[a]]$last_time, time) 
+      skills[[a]] = Skill(agents[[a]]$receive(elapsed),Ninf,Ninf,elapsed)
+    }
+    events <<- c()
+    for (e in seq(length(composition))){
+      teams = c()
+      for (t in seq(length(composition[[e]]))){
+        items = c()
+        for (a in seq(length(composition[[e]][[t]]))){
+          items = c(items, Item(composition[[e]][[t]][[a]],Ninf))
+        }
+        teams = c(teams, Team(items,results[[e]][[t]]))
+      }
+      events <<- c(events, Event(teams, 0))
+    }
+    time <<- time
+    agents <<- agents
+    env <<- env
+  },
+  show = function(){
+    cat(paste0("Batch(time=",time,", events=",events,")"))
+  },
+  posteriors = function(){
+    res = list()
+    for (a in names(skills)){
+      res[[a]] = skills[[a]]$posterior() 
+    }
+    return(res)
+  },
+  within_prior = function(item){
+    prior = agents[[item$name]]$prior
+    ms = skills[[item$name]]$posterior()/item$likelihood
+    return(Rating(ms$mu, ms$sigma, prior$beta, prior$gamma))
+  },
+  within_priors = function(event){
+    teams = list()
+    for (t in seq(length(events[event]$teams))){
+      vec = c()
+      for (item in events[event]$teams[t]$items){
+        vec = c(vec,within_prior(item))
+      }
+      teams[[t]] = vec
+    }
+    return(teams)
+  },
+  iteration = function(from_){
+    for (e in seq(from_,length(events))){
+      teams = within_priors(e)
+      result = events[e]$result()
+      g = Game(teams, result, env$margin)
+      t = 1
+      for (team in events[e]$teams){
+        i = 1
+        for (item in team$items){
+          skills[[item$name]]$likelihood = (skills[[item$name]]$likelihood / item$likelihood) * g$likelihoods[[t]][[i]]
+          item$likelihood = g$likelihoods[[t]][[i]]
+          i = i + 1
+        }
+        t = t + 1
+      }
+      events[e]$evidence = g$evidence
+    }
+  },
+  convergence = function(epsilon,iterations){
+    step = c(Inf,Inf); i = 0
+    while (gr_tuple(step,epsilon) & i < iterations){
+      old = posteriors()
+      iteration()
+      step = list_diff(old,posteriors())
+      i = i + 1
+    }
+    return(step)
+  },
+  forward_prior_out = function(name){
+    return(skills[[name]]$posterior_back)
+  },
+  backward_prior_out = function(name){
+    return(skills[[name]]$posterior_for$forget(agents[[name]]$gamma,skills[[name]]$elapsed))
+  },
+  new_backward_info = function(){
+    for (a in names(skills)){
+      skills[[a]]$backward = agents[[a]]$message
+    }
+    return(iteration())
+  },
+  new_forward_info = function(){
+    for (a in names(skills)){
+      skills[[a]]$forward = agents[[a]]$receive(skills[[a]]$elapsed)
+    }
+    return(iteration())
+  }
+)
+
+
+
 # 
 # teams = list(ta = c(Rating()), tb = c(Rating()))
 # result = c(0,1)

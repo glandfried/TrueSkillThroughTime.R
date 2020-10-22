@@ -144,7 +144,59 @@ test_forget = function(){
     checkEquals(N$forget(gamma,5)$sigma, sqrt(5*gamma^2))
     checkEquals(N$forget(gamma,1)$sigma, sqrt(1*gamma^2))
 }
-
+test_initialize_events = function(){
+    composition = list(list(c("a"),c("b")),list(c("c"),c("d")),list(c("e"),c("f")))
+    results = list(c(0,1),c(1,0),c(0,1))
+    events = initialize_events(composition, results)
+    chechTrue(events[[1]]$teams[[1]]$items[[1]]$name == "a")
+}
+test_initialize_skills = function(){
+    composition = list(list(c("a"),c("b")),list(c("c"),c("d")),list(c("e"),c("f")))
+    agents = list()
+    for (a in c("a","b","c","d","e","f")){
+        agents[[a]] = Agent(Rating(25,25/3,25/6,25/300), Ninf, -Inf)
+    }
+    
+    skills = initialize_skills(composition, agents, 0)
+    checkTrue(skills[[1]]$backward == Ninf)
+}
+test_one_event_each = function(){
+    composition = list(list(c("a"),c("b")),list(c("c"),c("d")),list(c("e"),c("f")))
+    results = list(c(0,1),c(1,0),c(0,1))
+    agents = list()
+    for (a in c("a","b","c","d","e","f")){
+        agents[[a]] = Agent(Rating(25,25/3,25/6,25/300), Ninf, -Inf)
+    }
+    
+    b = Batch(composition, results, 0, agents, Environment())
+    p = b$posteriors()
+    checkTrue(p$a == Gaussian(29.205,7.194))
+    checkTrue(p$d == Gaussian(29.205,7.194))
+    checkTrue(p$e == Gaussian(29.205,7.194))
+    checkTrue(p$b == Gaussian(20.795,7.194))
+    checkTrue(p$c == Gaussian(20.795,7.194))
+}
+test_batch_same_strength = function(){
+    composition = list(list(c("a"),c("b")),list(c("a"),c("c")),list(c("b"),c("c")))
+    results = list(c(0,1),c(1,0),c(0,1))
+    agents = list()
+    for (a in c("a","b","c")){
+        agents[[a]] = Agent(Rating(25,25/3,25/6,25/300), Ninf, -Inf)
+    }
+    b = Batch(composition, results, 0, agents, Environment())
+    p = b$posteriors()
+    checkTrue(p$a == Gaussian(mu=24.961, sigma=6.299))
+    checkTrue(p$b == Gaussian(mu=27.096, sigma=6.01))
+    checkTrue(p$c == Gaussian(mu=24.89, sigma=5.866))
+    b$convergence(1e-6,10)
+    p = b$posteriors()
+    checkTrue(p$a == Gaussian(25, 5.419))
+    checkTrue(p$b == Gaussian(25, 5.419))
+    checkTrue(p$c == Gaussian(25, 5.419))
+}
+test_add_events_batch = function(){
+    
+}
 source("TrueSkill.R")
 if (!require("RUnit", quietly = TRUE)) {
   stop("Package Runit is not found.") 

@@ -176,8 +176,8 @@ setMethod("/", c("Gaussian", "Gaussian"),
 })
 setMethod("==", c("Gaussian", "Gaussian"),
   function(e1, e2) {
-    mu = e1$mu - e2$mu < 1e-7
-    sigma = if (e2$sigma == Inf | e1$sigma == Inf) (e1$sigma==e2$sigma) else  (e1$sigma - e2$sigma < 1e-7)
+    mu = e1$mu - e2$mu < 1e-3
+    sigma = if (e2$sigma == Inf | e1$sigma == Inf) (e1$sigma==e2$sigma) else  (e1$sigma - e2$sigma < 1e-3)
     return(mu & sigma)
 })
 
@@ -475,13 +475,13 @@ Agent$methods(
 
 clean = function(agents, last_time=FALSE){
   for (a in names(agents)){
-    agents[[a]]$message = Ninf
-    if (last_time){ agents[[a]]$last_time = -Inf }
+    agents[[a]]$message <<- Ninf
+    if (last_time){ agents[[a]]$last_time <<- -Inf }
   }
 }
 
 Item <- setRefClass("Item",
-  fields = list(name = "string", likelihood = "Gaussian")
+  fields = list(name = "character", likelihood = "Gaussian")
 )
 Item$methods(  
   initialize = function(name, likelihood){
@@ -501,7 +501,11 @@ Event <- setRefClass("Event",
 )
 Event$methods(
   initialize = function(teams, evidence){
-    teams <<- teams; evidence <<- evidence
+    teams <<- teams
+    evidence <<- evidence
+  },
+  show = function(){
+    cat(paste0("Event(",names(),result()))
   },
   names = function(){
     res = list()
@@ -510,7 +514,7 @@ Event$methods(
       for (item in teams[t]$items){
         vec = c(vec, item$name)
       }
-      res[[i]] = vec
+      res[[t]] = vec
     }
     return(res)
   },
@@ -523,8 +527,8 @@ Event$methods(
   }
 )
 
-compute_elapsed = function(){
-    return(if (last_time == -Inf) 0 else (if (last_time == Inf) 1 else (actual_time - last_time)))
+compute_elapsed = function(last_time, actual_time){
+  return(if (last_time == -Inf) 0 else (if (last_time == Inf) 1 else (actual_time - last_time)))
 }
 
 list_unique = function(xss){
@@ -533,42 +537,53 @@ list_unique = function(xss){
   return(unique(res))
 }
 
+initialize_events = function(composition, results){
+    events_ = c()
+    for (e in seq(length(composition))){
+      teams_ = c()
+      for (t in seq(length(composition[[e]]))){
+        items_ = c()
+        for (a in seq(length(composition[[e]][[t]]))){
+          items_ = c(items_, Item(composition[[e]][[t]][[a]],Ninf))
+        }
+        teams_ = c(teams_, Team(items_,results[[e]][[t]]))
+      }
+      events_ = c(events_, Event(teams_, 0))
+    }
+    return(events_)
+}
+initialize_skills = function(composition,agents,time){
+    this_agents = list_unique(composition)
+    skills_ = list()
+    for (a in this_agents){
+      elapsed = compute_elapsed(agents[[a]]$last_time, time) 
+      skills_[[a]] = Skill(agents[[a]]$receive(elapsed),Ninf,Ninf,elapsed)
+    }
+    return(skills_)
+}
+
 Batch <- setRefClass("Batch",
   fields = list(
     time = "numeric",
-    events = "vector"
+    events = "vector",
     skills = "list",
     agents = "list",
-    env = "Environment")
+    env = "Environment"
+    )
 )
-Event$methods(
+Batch$methods(
   initialize = function(composition, results ,time, agents, env){
     if (length(composition) != length(results)) stop("length(composition)!= length(results)")
       
-    this_agents = list_unique(composition)
-    skills <<- list()
-    for (a in this_agents){
-      elapsed = compute_elapsed(agents[[a]]$last_time, time) 
-      skills[[a]] = Skill(agents[[a]]$receive(elapsed),Ninf,Ninf,elapsed)
-    }
-    events <<- c()
-    for (e in seq(length(composition))){
-      teams = c()
-      for (t in seq(length(composition[[e]]))){
-        items = c()
-        for (a in seq(length(composition[[e]][[t]]))){
-          items = c(items, Item(composition[[e]][[t]][[a]],Ninf))
-        }
-        teams = c(teams, Team(items,results[[e]][[t]]))
-      }
-      events <<- c(events, Event(teams, 0))
-    }
+    skills <<- initialize_skills(composition, agents, time)
+    events <<- initialize_events(composition, results)
     time <<- time
     agents <<- agents
     env <<- env
+    iteration()
   },
   show = function(){
-    cat(paste0("Batch(time=",time,", events=",events,")"))
+    cat(paste0("Batch(time=",time,", events=",length(events),", skills=", length(skills),")"))
   },
   posteriors = function(){
     res = list()
@@ -583,32 +598,32 @@ Event$methods(
     return(Rating(ms$mu, ms$sigma, prior$beta, prior$gamma))
   },
   within_priors = function(event){
-    teams = list()
-    for (t in seq(length(events[event]$teams))){
+    res = list()
+    for (t in seq(length(events[[event]]$teams))){
       vec = c()
-      for (item in events[event]$teams[t]$items){
+      for (item in events[[event]]$teams[[t]]$items){
         vec = c(vec,within_prior(item))
       }
-      teams[[t]] = vec
+      res[[t]] = vec
     }
-    return(teams)
+    return(res)
   },
-  iteration = function(from_){
+  iteration = function(from_ =1){
     for (e in seq(from_,length(events))){
       teams = within_priors(e)
-      result = events[e]$result()
-      g = Game(teams, result, env$margin)
+      result = events[[e]]$result()
+      g = Game(teams, result, env$p_draw)
       t = 1
-      for (team in events[e]$teams){
+      for (team in events[[e]]$teams){
         i = 1
         for (item in team$items){
-          skills[[item$name]]$likelihood = (skills[[item$name]]$likelihood / item$likelihood) * g$likelihoods[[t]][[i]]
+          skills[[item$name]]$likelihood <<- (skills[[item$name]]$likelihood / item$likelihood) * g$likelihoods[[t]][[i]]
           item$likelihood = g$likelihoods[[t]][[i]]
           i = i + 1
         }
         t = t + 1
       }
-      events[e]$evidence = g$evidence
+      events[[e]]$evidence <<- g$evidence
     }
   },
   convergence = function(epsilon,iterations){
@@ -629,17 +644,110 @@ Event$methods(
   },
   new_backward_info = function(){
     for (a in names(skills)){
-      skills[[a]]$backward = agents[[a]]$message
+      skills[[a]]$backward <<- agents[[a]]$message
     }
     return(iteration())
   },
   new_forward_info = function(){
     for (a in names(skills)){
-      skills[[a]]$forward = agents[[a]]$receive(skills[[a]]$elapsed)
+      skills[[a]]$forward <<- agents[[a]]$receive(skills[[a]]$elapsed)
     }
     return(iteration())
   }
 )
+
+initialize_agents = function(composition, prior, env){
+    this_agents = list_unique(composition)
+    res = list()
+    for (a in this_agents ){
+        res[[a]] = Agent(if (a %in% names(priors)) priors[[a]] else Rating(env$mu, env$sigma, env$beta, env$gamma), Ninf, -Inf)
+    }
+    return(res)
+}
+
+History = setRefClass("History",
+  fields = list(
+    size = "numeric",
+    batches = "vector",
+    agents = "list",
+    time = "logical",
+    env = "Environment")
+)
+History$methods(
+  initialize = function(composition,results,times=c(),priors=list(), env=Environment()){
+    if (length(composition) != length(results)){ stop("length(composition) != length(results)")}
+    if (length(times) > 0 & (length(composition) != length(times))){ stop("length(times) error")}
+    
+    size <<- length(composition)
+    batches <<- c()
+    agents <<- initialize_agents(composition, prior, env)
+    env <<- env
+    time <<- length(times) > 0
+  },
+  show = function(){
+    cat(paste0("History(Events=",size, ", Batches=", length(batches), ", Agents", length(agents),")"))
+  }
+  trueskill = function(){
+    o = if (time) sortperm(times) else seq(size)
+    i = 1
+    while (i <= size){
+      j = i; t = if (!time) i else times[o[i]]
+      while (((time) & (j < size)) && (times[o[j]] == t)){j=j+1}
+      b = Batch(composition[o[seq(i,j)]], results[o[seq(i,j)]], t, agents, env)
+      batches <<- c(batches, b)
+      for (a in names(skills)){
+        agents[[a]]$last_time <<- if (!time) Inf else t
+        agents[[a]]$message <<- b$forward_prior_out(a)
+      }
+      i = j + 1
+    }    
+  }
+  iteration = function(){
+    step = c(0,0)
+    clean(agents)
+    for (j in seq(length(batches)-1,1,-1)){
+      for (a in names(batches[[j+1]]$skills)){
+        agents[[a]]$message <<- batches[[j+1]]$backward_prior_out(a)
+      }
+      old = batches[[j]]$posteriors()
+      batches[[j]]$new_backward_info()
+      step = max_tuple(step,list_diff(old, batches[[j]]$posteriors()))
+    }
+    clean(agents)
+    for (j in seq(2,length(batches))){
+      for (a in names(batches[[j]]$skills)){
+        agents[[a]]$message <<- batches[[j-1]]$forward_prior_out(a)
+      }
+      old = batches[[j]]$posteriors()
+      batches[[j]]$new_forward_info()
+      step = max_tuple(step,list_diff(old, batches[[j]]$posteriors()))
+    }
+   
+    if (length(batches)==1){
+      old = batches[[1]]$posteriors()
+      batches[[1]]$iteration()
+      step = max_tuple(step,list_diff(old, batches[[j]]$posteriors()))
+    }
+    return(step)
+  },
+  convergence = function(verbose=FALSE){
+    step = c(Inf, Inf); i = 0
+    while (step > env$epsilon & i < env$iterations){
+      if (verbose){cat(paste0("Iteration = ", iter))}
+      step = iteration()
+      i = i + 1
+      if (verbose){print(paste0("step = ", step))}
+    }
+    if (verbose){print("End")}
+    return(step)
+  }
+)
+
+
+
+
+
+
 
 
 

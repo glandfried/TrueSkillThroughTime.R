@@ -148,7 +148,7 @@ test_initialize_events = function(){
     composition = list(list(c("a"),c("b")),list(c("c"),c("d")),list(c("e"),c("f")))
     results = list(c(0,1),c(1,0),c(0,1))
     events = initialize_events(composition, results)
-    chechTrue(events[[1]]$teams[[1]]$items[[1]]$name == "a")
+    checkTrue(events[[1]]$teams[[1]]$items[[1]]$name == "a")
 }
 test_initialize_skills = function(){
     composition = list(list(c("a"),c("b")),list(c("c"),c("d")),list(c("e"),c("f")))
@@ -193,10 +193,114 @@ test_batch_same_strength = function(){
     checkTrue(p$a == Gaussian(25, 5.419))
     checkTrue(p$b == Gaussian(25, 5.419))
     checkTrue(p$c == Gaussian(25, 5.419))
-}
-test_add_events_batch = function(){
+    
+    b$forward_prior_out("a")
     
 }
+test_history_init = function(){
+    composition = list(list(c("aa"),c("b")),list(c("aa"),c("c")),list(c("b"),c("c")))
+    results = list(c(0,1),c(1,0),c(0,1))
+    priors = list()
+    gamma = 0.15*25/3
+    for (a in c("aa","b","c")){
+        priors[[a]] = Rating(25,25/3,25/6,gamma)
+    }
+    h = History(composition, results, c(1,2,3), priors)
+    p1 = h$batches[[1]]$posteriors()
+    checkTrue(p1$aa$isapprox(Gaussian(29.205, 7.194),1e-3))
+    checkTrue(p1$b$isapprox( Gaussian(20.795,7.194),1e-3))
+    observed = h$batches[[2]]$skills[["aa"]]$forward$sigma
+    checkEquals(observed,sqrt(gamma^2+ p1$aa$sigma^2))
+    p2 = h$batches[[2]]$posteriors()
+    checkTrue(p2$aa$isapprox(Gaussian(24.86, 6.374),1e-3))
+    checkTrue(p2$c$isapprox(Gaussian(30.659, 6.922),1e-3))
+}
+test_one_batch_history = function(){
+    composition = list(list(c("aj"),c("bj")),list(c("bj"),c("cj")),list(c("cj"),c("aj")))
+    results = list(c(0,1),c(0,1),c(0,1))
+    env = Environment(mu=25,sigma=25/3,beta=25/6,gamma=0.15*25/3)
+    h = History(composition, results, times=c(0,0,0), env=env)
+    p1 = h$batches[[1]]$posteriors()
+    checkTrue(p1$aj$isapprox(Gaussian(22.904, 6.010),1e-3))
+    checkTrue(p1$bj$isapprox(Gaussian(25.039, 6.299),1e-3))
+    checkTrue(p1$cj$isapprox(Gaussian(25.11, 5.866),1e-3))
+    step = h$convergence(verbose=T)
+    p1 = h$batches[[1]]$posteriors()
+    checkTrue(p1$aj$isapprox(Gaussian(25, 5.419),1e-3))
+    checkTrue(p1$bj$isapprox(Gaussian(25, 5.419),1e-3))
+    checkTrue(p1$cj$isapprox(Gaussian(25, 5.419),1e-3))
+
+    env = Environment(mu=25,sigma=25/3,beta=25/6,gamma=25/300)
+    h1 = History(composition=composition, results=results, times=c(1,2,3), priors=priors)
+    p3 = h1$batches[[3]]$posteriors()
+    checkTrue(p3$aj$isapprox(Gaussian(22.904, 6.011),1e-3))
+    checkTrue(p3$cj$isapprox(Gaussian(25.11, 5.867),1e-3))
+    step = h1$convergence(T)
+    p3 = h1$batches[[3]]$posteriors()
+    checkTrue(p3$aj$isapprox(Gaussian(24.999, 5.420),1e-3))
+    checkTrue(p3$cj$isapprox(Gaussian(25.001, 5.420),1e-3))
+}
+test_trueSkill_Through_Time = function(){
+    composition = list(list(c("a"),c("b")),list(c("a"),c("c")),list(c("b"),c("c")))
+    results = list(c(0,1),c(1,0),c(0,1))
+    env = Environment(mu=25,sigma=25/3,beta=25/6,gamma=25/300)
+    h = History(composition=composition, results=results, times=c(), env=env)
+    h$convergence()
+    checkTrue(h$batches[[3]]$skills[["b"]]$elapsed==1)
+    p1=h$batches[[1]]$posteriors(); p3=h$batches[[3]]$posteriors()
+    checkTrue(p1$a$isapprox(Gaussian(25.000267, 5.4193816)))
+    checkTrue(p1$b$isapprox(Gaussian(24.999465, 5.4194258)))
+    checkTrue(p3$b$isapprox(Gaussian(25.00053219, 5.419696790)))
+}
+test_env_0_TTT = function(){
+    composition = list(list(c("a"),c("b")),list(c("a"),c("c")),list(c("b"),c("c")))
+    results = list(c(0,1),c(1,0),c(0,1))
+    env = Environment(mu=0,sigma=6,beta=1,gamma=0.05)
+    h = History(composition=composition, results=results, env=env)
+    h$convergence()
+    p1=h$batches[[1]]$posteriors(); p3=h$batches[[3]]$posteriors()
+    checkTrue(p1$a$isapprox(Gaussian(0.001, 2.396),1e-3))
+    checkTrue(p1$b$isapprox(Gaussian(-0.001,2.396),1e-3))
+    checkTrue(p3$b$isapprox(Gaussian(0.001, 2.396),1e-3))
+}
+test_teams = function(){
+    composition = list(list(c("a","b"),c("c","d")),list(c("e","f"),c("b","c")),list(c("a","d"),c("e","f")))
+    results = list(c(0,1),c(1,0),c(0,1))
+    env = Environment(mu=0,sigma=6,beta=1,gamma=0)
+    h = History(composition=composition, results=results, env=env)
+    h$convergence()
+    p1=h$batches[[1]]$posteriors(); p2=h$batches[[2]]$posteriors()
+    checkTrue(p1$a==p1$b)
+    checkTrue(p1$c==p1$d)
+    checkTrue(p2$f==p2$e)
+    checkTrue(p1$a$isapprox(Gaussian(4.085,5.107),1e-3))
+    checkTrue(p1$c$isapprox(Gaussian(-0.533,5.107),1e-3))
+    p3=h$batches[[3]]$posteriors()
+    checkTrue(p3$e$isapprox(Gaussian(-3.552,5.155),1e-3))
+}
+test_sigma_beta_0 = function(){
+    composition = list(list(c("a","a_b","b"),c("c","c_d","d")),list(c("e","e_f","f"),c("b","b_c","c")),list(c("a","a_d","d"),c("e","e_f","f")))
+    results = list(c(0,1),c(1,0),c(0,1))
+    env = Environment(mu=0,sigma=6,beta=1,gamma=0)
+    priors = list()
+    for (a in c("a_b","c_d","e_f","b_c","a_d","e_f")){
+        priors[[a]] = Rating(0,1e-7,0.0,0.2)
+    }
+    h = History(composition=composition, results=results, priors=priors, env=env)
+    h$convergence()
+    p1=h$batches[[1]]$posteriors()
+    p2=h$batches[[2]]$posteriors()
+    p3=h$batches[[3]]$posteriors()
+    checkTrue(p1$a_b$isapprox(Gaussian(0,0),1e-4))
+    checkTrue(p3$e_f$isapprox(Gaussian(-0.002,0.2),1e-4))
+}
+test_memory_size = function(){
+    cat("Add a test for memory size please\n")
+}
+test_learning_curve = function(){
+    cat("Add learning curve function\n")
+}
+
 source("TrueSkill.R")
 if (!require("RUnit", quietly = TRUE)) {
   stop("Package Runit is not found.") 

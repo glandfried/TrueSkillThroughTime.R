@@ -473,12 +473,6 @@ Agent$methods(
   }
 )
 
-clean = function(agents, last_time=FALSE){
-  for (a in names(agents)){
-    agents[[a]]$message <<- Ninf
-    if (last_time){ agents[[a]]$last_time <<- -Inf }
-  }
-}
 
 Item <- setRefClass("Item",
   fields = list(name = "character", likelihood = "Gaussian")
@@ -583,7 +577,10 @@ Batch$methods(
     iteration()
   },
   show = function(){
-    cat(paste0("Batch(time=",time,", events=",length(events),", skills=", length(skills),")"))
+    cat(paste0("Batch(time=",time,", events=",length(events),", skills=", length(skills),")\n"))
+  },
+  posterior = function(a){
+    return(skills[[a]]$posterior() )
   },
   posteriors = function(){
     res = list()
@@ -637,10 +634,10 @@ Batch$methods(
     return(step)
   },
   forward_prior_out = function(name){
-    return(skills[[name]]$posterior_back)
+    return(skills[[name]]$posterior_back())
   },
   backward_prior_out = function(name){
-    return(skills[[name]]$posterior_for$forget(agents[[name]]$gamma,skills[[name]]$elapsed))
+    return(skills[[name]]$posterior_for()$forget(agents[[name]]$prior$gamma,skills[[name]]$elapsed))
   },
   new_backward_info = function(){
     for (a in names(skills)){
@@ -656,14 +653,6 @@ Batch$methods(
   }
 )
 
-initialize_agents = function(composition, prior, env){
-    this_agents = list_unique(composition)
-    res = list()
-    for (a in this_agents ){
-        res[[a]] = Agent(if (a %in% names(priors)) priors[[a]] else Rating(env$mu, env$sigma, env$beta, env$gamma), Ninf, -Inf)
-    }
-    return(res)
-}
 
 History = setRefClass("History",
   fields = list(
@@ -678,33 +667,48 @@ History$methods(
     if (length(composition) != length(results)){ stop("length(composition) != length(results)")}
     if (length(times) > 0 & (length(composition) != length(times))){ stop("length(times) error")}
     
-    size <<- length(composition)
-    batches <<- c()
-    agents <<- initialize_agents(composition, prior, env)
-    env <<- env
-    time <<- length(times) > 0
+    this_agents = list_unique(composition)
+    agents_ = list()
+    for (a in this_agents ){
+        agents_[[a]] = Agent(if (a %in% names(priors)) priors[[a]] else Rating(env$mu, env$sigma, env$beta, env$gamma), Ninf, -Inf)
+    }
+    
+     size <<- length(composition)
+     agents <<- agents_
+     env <<- env
+     time <<- length(times) > 0
+     trueskill(composition, results, times)
   },
   show = function(){
-    cat(paste0("History(Events=",size, ", Batches=", length(batches), ", Agents", length(agents),")"))
-  }
-  trueskill = function(){
+    cat(paste0("History(Events=",size, ", Batches=", length(batches), ", Agents=", length(agents),")\n"))
+  },
+  trueskill = function(composition, results, times){
     o = if (time) sortperm(times) else seq(size)
     i = 1
     while (i <= size){
       j = i; t = if (!time) i else times[o[i]]
-      while (((time) & (j < size)) && (times[o[j]] == t)){j=j+1}
+      while (((time) & (j < size)) && (times[o[j+1]] == t)){j=j+1}
       b = Batch(composition[o[seq(i,j)]], results[o[seq(i,j)]], t, agents, env)
-      batches <<- c(batches, b)
-      for (a in names(skills)){
+      batches <<- if (is.null(batches)) c(b) else c(batches, b)
+      for (a in names(b$skills)){
         agents[[a]]$last_time <<- if (!time) Inf else t
         agents[[a]]$message <<- b$forward_prior_out(a)
       }
       i = j + 1
     }    
-  }
+  },
   iteration = function(){
     step = c(0,0)
-    clean(agents)
+    
+    if (length(batches)==1){
+      old = batches[[1]]$posteriors()
+      batches[[1]]$iteration()
+      step = max_tuple(step,list_diff(old, batches[[1]]$posteriors()))
+    
+    }else{
+    
+    #clean(agents)
+    for (a in names(agents)){agents[[a]]$message <<- Ninf}
     for (j in seq(length(batches)-1,1,-1)){
       for (a in names(batches[[j+1]]$skills)){
         agents[[a]]$message <<- batches[[j+1]]$backward_prior_out(a)
@@ -713,32 +717,29 @@ History$methods(
       batches[[j]]$new_backward_info()
       step = max_tuple(step,list_diff(old, batches[[j]]$posteriors()))
     }
-    clean(agents)
+    #clean(agents)
+    for (a in names(agents)){agents[[a]]$message <<- Ninf}
     for (j in seq(2,length(batches))){
-      for (a in names(batches[[j]]$skills)){
+      for (a in names(batches[[j-1]]$skills)){
         agents[[a]]$message <<- batches[[j-1]]$forward_prior_out(a)
       }
       old = batches[[j]]$posteriors()
       batches[[j]]$new_forward_info()
       step = max_tuple(step,list_diff(old, batches[[j]]$posteriors()))
     }
-   
-    if (length(batches)==1){
-      old = batches[[1]]$posteriors()
-      batches[[1]]$iteration()
-      step = max_tuple(step,list_diff(old, batches[[j]]$posteriors()))
-    }
+    
+    } #end ELSE
     return(step)
   },
   convergence = function(verbose=FALSE){
-    step = c(Inf, Inf); i = 0
-    while (step > env$epsilon & i < env$iterations){
-      if (verbose){cat(paste0("Iteration = ", iter))}
+    step = c(Inf, Inf); i = 1
+    while (gr_tuple(step,env$epsilon) & i <= env$iterations){
+      if (verbose){cat(paste0("Iteration = ", i))}
       step = iteration()
       i = i + 1
-      if (verbose){print(paste0("step = ", step))}
+      if (verbose){cat(paste0(" step = (", step[1], ", ", step[2], ")\n"))}
     }
-    if (verbose){print("End")}
+    if (verbose){cat("End\n")}
     return(step)
   }
 )

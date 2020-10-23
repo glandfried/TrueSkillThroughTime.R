@@ -231,7 +231,7 @@ test_one_batch_history = function(){
     checkTrue(p1$cj$isapprox(Gaussian(25, 5.419),1e-3))
 
     env = Environment(mu=25,sigma=25/3,beta=25/6,gamma=25/300)
-    h1 = History(composition=composition, results=results, times=c(1,2,3), priors=priors)
+    h1 = History(composition=composition, results=results, times=c(1,2,3), env=env)
     p3 = h1$batches[[3]]$posteriors()
     checkTrue(p3$aj$isapprox(Gaussian(22.904, 6.011),1e-3))
     checkTrue(p3$cj$isapprox(Gaussian(25.11, 5.867),1e-3))

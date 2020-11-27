@@ -2,7 +2,6 @@ source("TrueSkill.R")
 if (!require("RUnit", quietly = TRUE)) {
   stop("Package Runit is not found.") 
 }
-
 test_gaussian_init = function() {
     checkEquals(Gaussian(0,1)$isapprox(N01), T)
     checkEquals(Gaussian(0,Inf)$mu, 0)
@@ -28,9 +27,9 @@ test_compute_margin = function(){
     checkEquals(compute_margin(0.0,sqrt(3)*25.0/6),2.7134875810e-07)
 }
 test_trunc = function(){
-    checkEquals(trunc(0,1,0.,FALSE),Gaussian(0.797884536,0.6028103066) )
-    checkEquals(trunc(0.,sqrt(2)*(25/6),1.8776005988,TRUE), Gaussian(0.0,1.0767055), tolerance = 1e-6)
-    checkEquals(trunc(12,sqrt(2)*(25/6),1.8776005988,TRUE),Gaussian( 0.3900995,1.0343979),tolerance = 1e-6)
+    checkEquals(trunc(0,1,0.,FALSE),c(0.797884536,0.6028103066) )
+    checkEquals(trunc(0.,sqrt(2)*(25/6),1.8776005988,TRUE), c(0.0,1.0767055), tolerance = 1e-6)
+    checkEquals(trunc(12,sqrt(2)*(25/6),1.8776005988,TRUE),c( 0.3900995,1.0343979),tolerance = 1e-6)
 }
 test_gaussian = function(){
     N = Gaussian(25.0, 25.0/3); M = Gaussian(0.0, 1.0)

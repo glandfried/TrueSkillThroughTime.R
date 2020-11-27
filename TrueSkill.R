@@ -1,4 +1,17 @@
 library(microbenchmark)
+library(hash)
+
+# Y really appreciate R, but: https://www.refsmmat.com/posts/2016-09-12-r-lists.html
+# --
+# look: https://bookdown.org/csgillespie/efficientR/programming.html
+# --
+# Environment: http://adv-r.had.co.nz/Environments.html
+# library(pryr)
+
+# --
+# TODO: never to grow vectors. (vec <- rep(NA,10))
+# TODO: hashable structure
+
 
 BETA = 1.0
 MU = 0.0
@@ -103,7 +116,11 @@ trunc = function(mu, sigma, margin, tie){
   }
   mu_trunc = mu + sigma * v
   sigma_trunc = sigma * sqrt(1-w)
-  return(Gaussian(mu_trunc, sigma_trunc))
+  return(c(mu_trunc, sigma_trunc))
+}
+approx = function(N, margin, tie){
+  m_s = trunc(N$mu, N$sigma, margin, tie)
+  return(Gaussian(m_s[1],m_s[2]))
 }
 compute_margin = function(p_draw, sd){
   return(abs(ppf(0.5-p_draw/2, 0.0, sd )))
@@ -197,18 +214,18 @@ list_diff = function(old, new){
 
 
 Rating <- setRefClass("Rating", 
-  fields = list(N = "Gaussian"
+  fields = list(prior = "Gaussian"
                ,beta = "numeric"
                ,gamma = "numeric"
                ,draw = "Gaussian")
 )
 Rating$methods( 
   initialize = function(mu=MU, sigma=SIGMA, beta=BETA, gamma=GAMMA){
-    N <<- Gaussian(mu, sigma); beta <<- beta; gamma <<- gamma; draw <<- Ninf
+    prior <<- Gaussian(mu, sigma); beta <<- beta; gamma <<- gamma; draw <<- Ninf
   },
-  show = function() { cat(paste0("Rating(mu=", round(N$mu,3), ", sigma=", round(N$sigma,3),")"))},
+  show = function() { cat(paste0("Rating(mu=", round(prior$mu,3), ", sigma=", round(prior$sigma,3),")"))},
   performance = function(){
-    return(Gaussian(N$mu, sqrt(N$sigma^2 + beta^2)))
+    return(Gaussian(prior$mu, sqrt(prior$sigma^2 + beta^2)))
   }
 )
 
@@ -347,7 +364,7 @@ Game$methods(
     gr = graphical_model()
     d = gr$d[[1]]$prior
     mu_sigma_trunc =  trunc(d$mu, d$sigma, gr$margin[1], gr$tie[1])
-    mu_trunc = mu_sigma_trunc$mu; sigma_trunc = mu_sigma_trunc$sigma
+    mu_trunc = mu_sigma_trunc[1]; sigma_trunc = mu_sigma_trunc[2]
     if (d$sigma==sigma_trunc){
       delta_div = 0.0
       theta_div_pow2 = Inf
@@ -359,8 +376,8 @@ Game$methods(
     for (i in seq(length(teams))){#i=1
       team = c()
       for (j in seq(length(teams[[i]]))){#j=1
-        mu = if (d$sigma == sigma_trunc) 0.0 else teams[[i]][[j]]$N$mu + ( delta_div - d$mu)*(-1)^(gr$o[i]==2)
-        sigma_analitico = sqrt(theta_div_pow2 + d$sigma^2 - teams[[i]][[j]]$N$sigma^2)
+        mu = if (d$sigma == sigma_trunc) 0.0 else teams[[i]][[j]]$prior$mu + ( delta_div - d$mu)*(-1)^(gr$o[i]==2)
+        sigma_analitico = sqrt(theta_div_pow2 + d$sigma^2 - teams[[i]][[j]]$prior$sigma^2)
         team = c(team,Gaussian(mu,sigma_analitico))
       res[[i]] = team
       }
@@ -374,14 +391,14 @@ Game$methods(
     while (gr_tuple(step,1e-6) & i < 10){
       for (e in seq(length(d)-1)){
         d[[e]]$prior = t[[e]]$posterior_win() - t[[e+1]]$posterior_lose()
-        d[[e]]$likelihood = trunc(d[[e]]$prior$mu,d[[e]]$prior$sigma,margin[[e]],tie[[e]])/d[[e]]$prior
+        d[[e]]$likelihood = approx(d[[e]]$prior,margin[[e]],tie[[e]])/d[[e]]$prior
         likelihood_lose = t[[e]]$posterior_win() - d[[e]]$likelihood
         step = max_tuple(step,t[[e+1]]$likelihood_lose$delta(likelihood_lose))
         t[[e+1]]$likelihood_lose = likelihood_lose
       }
       for (e in seq(length(d),2,-1)){
         d[[e]]$prior = t[[e]]$posterior_win() - t[[e+1]]$posterior_lose()
-        d[[e]]$likelihood = trunc(d[[e]]$prior$mu,d[[e]]$prior$sigma,margin[[e]],tie[[e]])/d[[e]]$prior
+        d[[e]]$likelihood = approx(d[[e]]$prior,margin[[e]],tie[[e]])/d[[e]]$prior
         likelihood_win = t[[e+1]]$posterior_lose() + d[[e]]$likelihood
         step = max_tuple(step,t[[e]]$likelihood_win$delta(likelihood_win))
         t[[e]]$likelihood_win = likelihood_win
@@ -390,7 +407,7 @@ Game$methods(
     }
     if (length(d)==1){
       d[[1]]$prior = t[[1]]$posterior_win() - t[[2]]$posterior_lose()
-      d[[1]]$likelihood = trunc(d[[1]]$prior$mu,d[[1]]$prior$sigma,margin[[1]],tie[[1]])/d[[1]]$prior
+      d[[1]]$likelihood = approx(d[[1]]$prior,margin[[1]],tie[[1]])/d[[1]]$prior
     }
     t[[1]]$likelihood_win = t[[2]]$posterior_lose() + d[[1]]$likelihood
     t[[length(t)]]$likelihood_lose = t[[length(t)-1]]$posterior_win() - d[[length(d)]]$likelihood
@@ -404,7 +421,7 @@ Game$methods(
       for (e in seq(length(teams))){#e=1
         res = c()
         for (i in seq(length(teams[[e]]))){#i=1
-          res = c(res, m_t_ft[[e]] - performance(e)$exclude(teams[[e]][[i]]$N))
+          res = c(res, m_t_ft[[e]] - performance(e)$exclude(teams[[e]][[i]]$prior))
         }
         likelihoods[[e]] <<- res
       }
@@ -417,7 +434,7 @@ Game$methods(
     for (e in seq(length(teams))){
       post = c()
       for (i in seq(length(teams[[e]]))){
-        post = c(post, likelihoods[[e]][[i]] * teams[[e]][[i]]$N)   
+        post = c(post, likelihoods[[e]][[i]] * teams[[e]][[i]]$prior)   
       }
       if (is.null(names(teams))){
         res[[e]] = post
@@ -455,19 +472,19 @@ Skill$methods(
 
 Agent <- setRefClass("Agent",
   fields = list(
-    prior = "Rating",
+    rating = "Rating",
     message = "Gaussian",
     last_time = "numeric")
 )
 Agent$methods(
-  initialize = function(prior, message, last_time){
-    prior <<- prior; message <<- message; last_time <<- last_time
+  initialize = function(rating, message, last_time){
+    rating <<- rating; message <<- message; last_time <<- last_time
   },
   receive = function(elapsed){
     if (!(message==Ninf)){
-      res = message$forget(prior$gamma, elapsed)
+      res = message$forget(rating$gamma, elapsed)
     }else{
-      res = prior$N
+      res = rating$prior
     }
     return(res)
   }
@@ -590,9 +607,9 @@ Batch$methods(
     return(res)
   },
   within_prior = function(item){
-    prior = agents[[item$name]]$prior
+    r = agents[[item$name]]$rating
     ms = skills[[item$name]]$posterior()/item$likelihood
-    return(Rating(ms$mu, ms$sigma, prior$beta, prior$gamma))
+    return(Rating(ms$mu, ms$sigma, r$beta, r$gamma))
   },
   within_priors = function(event){
     res = list()
@@ -637,7 +654,7 @@ Batch$methods(
     return(skills[[name]]$posterior_back())
   },
   backward_prior_out = function(name){
-    return(skills[[name]]$posterior_for()$forget(agents[[name]]$prior$gamma,skills[[name]]$elapsed))
+    return(skills[[name]]$posterior_for()$forget(agents[[name]]$rating$gamma,skills[[name]]$elapsed))
   },
   new_backward_info = function(){
     for (a in names(skills)){

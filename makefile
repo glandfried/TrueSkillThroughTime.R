@@ -1,2 +1,2 @@
 all:
-	Rscript runtests.R
+	Rscript runtest.R

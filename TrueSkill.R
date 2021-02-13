@@ -23,22 +23,7 @@ ITERATIONS = 10
 PI = 1/(SIGMA^2)
 TAU = MU*PI
 
-Environment <- setRefClass(
-  "Environment", 
-  fields = list(mu = "numeric"
-               ,sigma = "numeric"
-               ,beta = "numeric"
-               ,gamma = "numeric"
-               ,p_draw = "numeric"
-               ,epsilon = "numeric"
-               ,iterations = "numeric")
-)
-Environment$methods( 
-  initialize = function(mu=MU, sigma=SIGMA, beta=BETA, gamma=GAMMA, p_draw=P_DRAW, epsilon=EPSILON, iterations=ITERATIONS) {
-    mu <<- mu; sigma <<- sigma; beta <<- beta; gamma <<-gamma; p_draw <<- p_draw; epsilon <<- epsilon; iterations <<- iterations
-    },
-  show = function() { cat(paste0("Environment(mu=", round(mu,3), ", sigma=", round(sigma,3),", beta=",round(beta,3),", gamma=",round(gamma,3),", p_draw=", round(p_draw),", epsilon=",epsilon,", iterations=",ceiling(iterations),")"))}
-)
+sqrt2 = sqrt(2)
 
 erfc <- function(x){
     z = abs(x)
@@ -91,7 +76,7 @@ mu_sigma <- function(tau_, pi_){
 }
 
 cdf = function(x, mu, sigma){
-  z = -(x - mu) / (sigma * sqrt(2))
+  z = -(x - mu) / (sigma * sqrt2)
   return(0.5*erfc(z) )
 }
 pdf = function(x, mu, sigma){
@@ -100,7 +85,7 @@ pdf = function(x, mu, sigma){
   return(normalizer * functional)
 }
 ppf = function(p, mu, sigma){
-  return( mu - sigma * sqrt(2)  * erfcinv(2 * p))
+  return( mu - sigma * sqrt2 * erfcinv(2 * p))
 }
 trunc = function(mu, sigma, margin, tie){
   if (!tie){
@@ -131,8 +116,8 @@ max_tuple = function(t1, t2){
 gr_tuple = function(tup, threshold){
     return( (tup[1] > threshold) | (tup[2] > threshold) )
 }
-sortperm = function(xs){
-  return(order(xs))
+sortperm = function(xs, decreasing = F){
+  return(order(xs, decreasing = decreasing))
 }
 Gaussian <- setRefClass("Gaussian", 
                 fields = list(mu = "numeric"
@@ -213,17 +198,17 @@ list_diff = function(old, new){
 }
 
 
-Rating <- setRefClass("Rating", 
+Player <- setRefClass("Player", 
   fields = list(prior = "Gaussian"
                ,beta = "numeric"
                ,gamma = "numeric"
                ,draw = "Gaussian")
 )
-Rating$methods( 
-  initialize = function(mu=MU, sigma=SIGMA, beta=BETA, gamma=GAMMA){
-    prior <<- Gaussian(mu, sigma); beta <<- beta; gamma <<- gamma; draw <<- Ninf
+Player$methods( 
+  initialize = function(prior=Gaussian(MU, SIGMA), beta=BETA, gamma=GAMMA){
+    prior <<- prior; beta <<- beta; gamma <<- gamma; draw <<- Ninf
   },
-  show = function() { cat(paste0("Rating(mu=", round(prior$mu,3), ", sigma=", round(prior$sigma,3),")"))},
+  show = function() { cat(paste0("Player(Gaussian(mu=", round(prior$mu,3), ", sigma=", round(prior$sigma,3),"), beta=",round(beta,3), ", gamma=",round(gamma,3)))},
   performance = function(){
     return(Gaussian(prior$mu, sqrt(prior$sigma^2 + beta^2)))
   }
@@ -312,20 +297,20 @@ Game <- setRefClass("Game",
     evidence = "numeric")
 )
 Game$methods(
-  initialize = function(teams, result, p_draw=0.0){
-    if (length(teams) != length(result)) stop("length(teams) != length(result)")
+  initialize = function(teams, result = vector(), p_draw=P_DRAW){
+    if ((length(result)>0) & (length(teams) != length(result))) stop("(length(results)>0) & (length(teams) != length(result))")
     if ((0.0 > p_draw) | (1.0 <= p_draw)) stop("0.0 <= p_draw < 1.0")
         
     teams <<- teams
     result <<- result
     p_draw <<- p_draw
-    likelihoods <<- list()
+    likelihoods <<- vector('list', length(teams))
     evidence <<- 0.0
     compute_likelihoods()
   },
   size = function(){
-    res = c()
-    for (team in teams){ res = c(res,length(team)) }
+    res = rep(NA,length(teams))
+    for (t in seq(length(teams))){ res[t] =length(team[t]) }
     return(res)
   },
   performance = function(i){
@@ -335,22 +320,25 @@ Game$methods(
   }
   ,
   graphical_model = function(){
-    o = sortperm(result)
-    t = c(); d = c(); tie = c(); margin = c()
+    r = if (length(result)>0) result else seq(length(teams)-1,0)
+    o = sortperm(r, decreasing = T)
+    t = vector('list', length(teams))
+    d = vector('list', length(teams)-1)
+    tie = rep(NA, length(d)); margin =  rep(NA, length(d))
     for (e in seq(length(teams))){
-      t = c(t,team_messages(performance(o[e]))) }
+      t[[e]] = team_messages(performance(o[e])) }
     for (e in seq(length(teams)-1)){ 
-      d = c(d,diff_messages(t[[e]]$prior - t[[e+1]]$prior)) }
+      d[[e]] = diff_messages(t[[e]]$prior - t[[e+1]]$prior) }
     for (e in seq(length(d))){
-     tie = c(tie,result[o[e]]==result[o[e+1]])}
+     tie[e] = r[o[e]]==r[o[e+1]]}
     for (e in seq(length(d))){
       if (p_draw == 0.0){ 
-        margin = c(margin, 0.0)}
+        margin[e] = 0.0}
       else{ 
         betas = 0
         for (a in teams[[o[e]]]){betas = betas + a$beta^2}
         for (a in teams[[o[e+1]]]){betas = betas + a$beta^2}
-        margin = c(margin, compute_margin(p_draw, sqrt(betas) )) 
+        margin[e] = compute_margin(p_draw, sqrt(betas) ) 
       }
     }
     evidence <<- 1
@@ -372,15 +360,15 @@ Game$methods(
       delta_div = (d$sigma^2*mu_trunc - sigma_trunc^2*d$mu)/(d$sigma^2-sigma_trunc^2)
       theta_div_pow2 = (sigma_trunc^2*d$sigma^2)/(d$sigma^2 - sigma_trunc^2)
     }
-    res = list()
+    res = vector('list', length(teams))
     for (i in seq(length(teams))){#i=1
-      team = c()
+      team = vector('list', length(teams[[i]]))
       for (j in seq(length(teams[[i]]))){#j=1
         mu = if (d$sigma == sigma_trunc) 0.0 else teams[[i]][[j]]$prior$mu + ( delta_div - d$mu)*(-1)^(gr$o[i]==2)
         sigma_analitico = sqrt(theta_div_pow2 + d$sigma^2 - teams[[i]][[j]]$prior$sigma^2)
-        team = c(team,Gaussian(mu,sigma_analitico))
-      res[[i]] = team
+        team[[j]] = Gaussian(mu,sigma_analitico)
       }
+      res[[i]] = team
     }
     return(res)
   },
@@ -411,17 +399,17 @@ Game$methods(
     }
     t[[1]]$likelihood_win = t[[2]]$posterior_lose() + d[[1]]$likelihood
     t[[length(t)]]$likelihood_lose = t[[length(t)-1]]$posterior_win() - d[[length(d)]]$likelihood
-    res = c()
-    for (e in seq(length(t))){ res = c(res,t[[o[e]]]$likelihood())}
+    res = vector('list', length(t))
+    for (e in seq(length(t))){ res[[e]] = t[[o[e]]]$likelihood()}
     return(res)
   },
   compute_likelihoods = function(){
     if (length(teams)>2){
       m_t_ft = likelihood_teams()
       for (e in seq(length(teams))){#e=1
-        res = c()
+        res = vector('list', length(teams[[e]]))
         for (i in seq(length(teams[[e]]))){#i=1
-          res = c(res, m_t_ft[[e]] - performance(e)$exclude(teams[[e]][[i]]$prior))
+          res[[i]] = m_t_ft[[e]] - performance(e)$exclude(teams[[e]][[i]]$prior)
         }
         likelihoods[[e]] <<- res
       }
@@ -430,11 +418,11 @@ Game$methods(
     }
   },
   posteriors = function(){
-    res = list()
+    res = vector('list', length(teams))
     for (e in seq(length(teams))){
-      post = c()
+      post = vector('list', length(teams[[e]]))
       for (i in seq(length(teams[[e]]))){
-        post = c(post, likelihoods[[e]][[i]] * teams[[e]][[i]]$prior)   
+        post[[i]] = likelihoods[[e]][[i]] * teams[[e]][[i]]$prior
       }
       if (is.null(names(teams))){
         res[[e]] = post
@@ -472,24 +460,23 @@ Skill$methods(
 
 Agent <- setRefClass("Agent",
   fields = list(
-    rating = "Rating",
+    player = "Player",
     message = "Gaussian",
     last_time = "numeric")
 )
 Agent$methods(
-  initialize = function(rating, message, last_time){
-    rating <<- rating; message <<- message; last_time <<- last_time
+  initialize = function(player, message, last_time){
+    player <<- player; message <<- message; last_time <<- last_time
   },
   receive = function(elapsed){
     if (!(message==Ninf)){
-      res = message$forget(rating$gamma, elapsed)
+      res = message$forget(player$gamma, elapsed)
     }else{
-      res = rating$prior
+      res = player$prior
     }
     return(res)
   }
 )
-
 
 Item <- setRefClass("Item",
   fields = list(name = "character", likelihood = "Gaussian")
@@ -515,15 +502,15 @@ Event$methods(
     teams <<- teams
     evidence <<- evidence
   },
-  show = function(){
-    cat(paste0("Event(",names(),result()))
-  },
+  #show = function(){
+  #  print(paste("Event(",names(),",",result(),")"))
+  #},
   names = function(){
-    res = list()
+    res = vector('list', length(teams))
     for (t in seq(length(teams))){
-      vec = c()
-      for (item in teams[t]$items){
-        vec = c(vec, item$name)
+      vec = rep(NA, length(teams[[t]]))
+      for (i in seq(length(teams[[t]]))){
+        vec[i] = teams[[t]]$items[[i]]$name
       }
       res[[t]] = vec
     }
@@ -543,29 +530,27 @@ compute_elapsed = function(last_time, actual_time){
 }
 
 list_unique = function(xss){
-  res = c()
-  for (xs in xss){for (x in xs){res = c(res, x)}}
-  return(unique(res))
+  return(unique(unlist(xss)))
 }
 
 initialize_events = function(composition, results){
-    events_ = c()
+    events_ = vector('list',length(composition))
     for (e in seq(length(composition))){
-      teams_ = c()
+      teams_ =  vector('list',length(composition[[e]]))
       for (t in seq(length(composition[[e]]))){
-        items_ = c()
+        items_ = vector('list',length(composition[[e]][[t]]))
         for (a in seq(length(composition[[e]][[t]]))){
-          items_ = c(items_, Item(composition[[e]][[t]][[a]],Ninf))
+          items_[[a]] = Item(composition[[e]][[t]][[a]], Ninf)
         }
-        teams_ = c(teams_, Team(items_,results[[e]][[t]]))
+        teams_[[t]] = Team(items_, if (length(results)>0) results[[e]][[t]] else length(composition[[e]])-t)
       }
-      events_ = c(events_, Event(teams_, 0))
+      events_[[e]] = Event(teams_, 0)
     }
     return(events_)
 }
 initialize_skills = function(composition,agents,time){
     this_agents = list_unique(composition)
-    skills_ = list()
+    skills_ = hash()
     for (a in this_agents){
       elapsed = compute_elapsed(agents[[a]]$last_time, time) 
       skills_[[a]] = Skill(agents[[a]]$receive(elapsed),Ninf,Ninf,elapsed)
@@ -577,20 +562,20 @@ Batch <- setRefClass("Batch",
   fields = list(
     time = "numeric",
     events = "vector",
-    skills = "list",
-    agents = "list",
-    env = "Environment"
+    skills = "hash",
+    agents = "hash",
+    p_draw = "numeric"
     )
 )
 Batch$methods(
-  initialize = function(composition, results ,time, agents, env){
-    if (length(composition) != length(results)) stop("length(composition)!= length(results)")
+  initialize = function(composition, results = list() ,time = 0, agents = hash(), p_draw=P_DRAW){
+    if ((length(results)>0) & (length(composition) != length(results))) stop("(length(results)>0) & (length(composition) != length(results))")
       
     skills <<- initialize_skills(composition, agents, time)
     events <<- initialize_events(composition, results)
     time <<- time
     agents <<- agents
-    env <<- env
+    p_draw <<- p_draw
     iteration()
   },
   show = function(){
@@ -607,9 +592,9 @@ Batch$methods(
     return(res)
   },
   within_prior = function(item){
-    r = agents[[item$name]]$rating
+    r = agents[[item$name]]$player
     ms = skills[[item$name]]$posterior()/item$likelihood
-    return(Rating(ms$mu, ms$sigma, r$beta, r$gamma))
+    return(Player(Gaussian(ms$mu, ms$sigma), r$beta, r$gamma))
   },
   within_priors = function(event){
     res = list()
@@ -626,7 +611,7 @@ Batch$methods(
     for (e in seq(from_,length(events))){
       teams = within_priors(e)
       result = events[[e]]$result()
-      g = Game(teams, result, env$p_draw)
+      g = Game(teams, result, p_draw)
       t = 1
       for (team in events[[e]]$teams){
         i = 1
@@ -654,7 +639,7 @@ Batch$methods(
     return(skills[[name]]$posterior_back())
   },
   backward_prior_out = function(name){
-    return(skills[[name]]$posterior_for()$forget(agents[[name]]$rating$gamma,skills[[name]]$elapsed))
+    return(skills[[name]]$posterior_for()$forget(agents[[name]]$player$gamma,skills[[name]]$elapsed))
   },
   new_backward_info = function(){
     for (a in names(skills)){
@@ -675,25 +660,32 @@ History = setRefClass("History",
   fields = list(
     size = "numeric",
     batches = "vector",
-    agents = "list",
+    agents = "hash",
     time = "logical",
-    env = "Environment")
+    mu = "numeric",
+    sigma = "numeric",
+    beta = "numeric",
+    gamma = "numeric",
+    p_draw = "numeric",
+    epsilon = "numeric",
+    iterations = "numeric"
+    )
 )
 History$methods(
-  initialize = function(composition,results,times=c(),priors=list(), env=Environment()){
-    if (length(composition) != length(results)){ stop("length(composition) != length(results)")}
+  initialize = function(composition, results=list(), times=c(), priors=list(), mu=MU, sigma=SIGMA, beta=BETA, gamma=GAMMA, p_draw=P_DRAW, epsilon=EPSILON, iterations=ITERATIONS){
+    if ((length(results)>0) & (length(composition) != length(results))){ stop("(length(results)>0) & (length(composition) != length(results))")}
     if (length(times) > 0 & (length(composition) != length(times))){ stop("length(times) error")}
     
     this_agents = list_unique(composition)
-    agents_ = list()
+    agents_ = hash()
     for (a in this_agents ){
-        agents_[[a]] = Agent(if (a %in% names(priors)) priors[[a]] else Rating(env$mu, env$sigma, env$beta, env$gamma), Ninf, -Inf)
+        agents_[[a]] = Agent(if (a %in% names(priors)) priors[[a]] else Player(Gaussian(mu, sigma), beta, gamma), Ninf, -Inf)
     }
     
      size <<- length(composition)
      agents <<- agents_
-     env <<- env
      time <<- length(times) > 0
+     mu <<- mu; sigma <<- sigma; beta <<- beta; gamma <<- gamma; p_draw <<- p_draw; epsilon <<- epsilon; iterations <<- iterations
      trueskill(composition, results, times)
   },
   show = function(){
@@ -705,7 +697,11 @@ History$methods(
     while (i <= size){
       j = i; t = if (!time) i else times[o[i]]
       while (((time) & (j < size)) && (times[o[j+1]] == t)){j=j+1}
-      b = Batch(composition[o[seq(i,j)]], results[o[seq(i,j)]], t, agents, env)
+      if (length(results)>0){
+        b = Batch(composition[o[seq(i,j)]], results[o[seq(i,j)]], t, agents, p_draw)
+      }else{
+        b = Batch(composition[o[seq(i,j)]], list(), t, agents, p_draw)  
+      }
       batches <<- if (is.null(batches)) c(b) else c(batches, b)
       for (a in names(b$skills)){
         agents[[a]]$last_time <<- if (!time) Inf else t
@@ -750,7 +746,7 @@ History$methods(
   },
   convergence = function(verbose=FALSE){
     step = c(Inf, Inf); i = 1
-    while (gr_tuple(step,env$epsilon) & i <= env$iterations){
+    while (gr_tuple(step,epsilon) & i <= iterations){
       if (verbose){cat(paste0("Iteration = ", i))}
       step = iteration()
       i = i + 1

@@ -758,12 +758,12 @@ History$methods(
   },
   learning_curves = function(){
     res = hash()
-    for (b in h$batches){
+    for (b in batches){
       for (a in names(b$skills)){
         t_p = c(b$time, b$posterior(a))
         if (has.key(a, res)){
           i = length(res[[a]])
-          res[[a]][[i+1]] = c(res[[a]],t_p)
+          res[[a]][[i+1]] = t_p
         }else{
           res[[a]][[1]] = t_p
         }
@@ -772,13 +772,6 @@ History$methods(
     return(res)
   }
 )
-
-
-
-
-
-
-
 
 
 # 

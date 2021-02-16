@@ -310,11 +310,23 @@ test_memory_size = function(){
     cat("Add a test for memory size please\n")
 }
 test_learning_curve = function(){
-    cat("Add learning curve function\n")
+    composition = list( list(c("aj"),c("bj")),list(c("bj"),c("cj")), list(c("cj"),c("aj")))
+    results = list(c(1,0),c(1,0),c(1,0))
+    priors = list()
+    for (a in c("aj", "bj", "cj")){
+        priors[[a]] = Player(Gaussian(25., 25.0/3), 25.0/6, 25.0/300) 
+    }
+    h = History(composition, results, c(5,6,7), priors)
+    h$convergence()
+    lc = h$learning_curves()
+    
+    checkTrue(lc$aj[[1]][[1]] == 5)
+    checkTrue(lc$aj[[2]][[1]] == 7)
+    checkTrue(lc$aj[[2]][[2]]$isapprox(Gaussian(24.999,5.420),1e-3))
+    checkTrue(lc$cj[[2]][[2]]$isapprox(Gaussian(25.001,5.420),13-3))
 }
-test_batch_history = function(){
-    cat("Que el Batch reciba el History del que depende como parametro\n")
-}
+
+# TODO: Que el Batch reciba el History del que depende como parametro
 
 
 source("TrueSkill.R")

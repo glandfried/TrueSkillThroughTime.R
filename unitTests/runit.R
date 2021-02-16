@@ -208,7 +208,7 @@ test_batch_same_strength = function(){
 test_history_init = function(){
     composition = list(list(c("aa"),c("b")),list(c("aa"),c("c")),list(c("b"),c("c")))
     results = list(c(1,0),c(0,1),c(1,0))
-    priors = list()
+    priors = hash()
     gamma = 0.15*25/3
     for (a in c("aa","b","c")){
         priors[[a]] = Player(Gaussian(25,25/3),25/6,gamma)
@@ -294,7 +294,7 @@ test_teams = function(){
 test_sigma_beta_0 = function(){
     composition = list(list(c("a","a_b","b"),c("c","c_d","d")),list(c("e","e_f","f"),c("b","b_c","c")),list(c("a","a_d","d"),c("e","e_f","f")))
     results = list(c(1,0),c(0,1),c(1,0))
-    priors = list()
+    priors = hash()
     for (a in c("a_b","c_d","e_f","b_c","a_d","e_f")){
         priors[[a]] = Player(Gaussian(0,1e-7),0.0,0.2)
     }
@@ -312,7 +312,7 @@ test_memory_size = function(){
 test_learning_curve = function(){
     composition = list( list(c("aj"),c("bj")),list(c("bj"),c("cj")), list(c("cj"),c("aj")))
     results = list(c(1,0),c(1,0),c(1,0))
-    priors = list()
+    priors = hash()
     for (a in c("aj", "bj", "cj")){
         priors[[a]] = Player(Gaussian(25., 25.0/3), 25.0/6, 25.0/300) 
     }

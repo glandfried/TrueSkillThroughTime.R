@@ -586,7 +586,7 @@ Batch$methods(
     return(skills[[a]]$posterior() )
   },
   posteriors = function(){
-    res = list()
+    res = hash()
     for (a in names(skills)){
       res[[a]] = skills[[a]]$posterior() 
     }
@@ -673,7 +673,7 @@ History = setRefClass("History",
     )
 )
 History$methods(
-  initialize = function(composition, results=list(), times=c(), priors=list(), mu=MU, sigma=SIGMA, beta=BETA, gamma=GAMMA, p_draw=P_DRAW, epsilon=EPSILON, iterations=ITERATIONS){
+  initialize = function(composition, results=list(), times=c(), priors=hash(), mu=MU, sigma=SIGMA, beta=BETA, gamma=GAMMA, p_draw=P_DRAW, epsilon=EPSILON, iterations=ITERATIONS){
     if ((length(results)>0) & (length(composition) != length(results))){ stop("(length(results)>0) & (length(composition) != length(results))")}
     if (length(times) > 0 & (length(composition) != length(times))){ stop("length(times) error")}
     
@@ -772,7 +772,6 @@ History$methods(
     return(res)
   }
 )
-
 
 # 
 # teams = list(ta = c(Rating()), tb = c(Rating()))

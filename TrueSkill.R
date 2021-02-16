@@ -19,7 +19,7 @@ SIGMA = BETA * 6
 GAMMA = BETA * 0.05
 P_DRAW = 0.0
 EPSILON = 1e-6
-ITERATIONS = 10
+ITERATIONS = 30
 PI = 1/(SIGMA^2)
 TAU = MU*PI
 
@@ -300,7 +300,8 @@ Game$methods(
   initialize = function(teams, result = vector(), p_draw=P_DRAW){
     if ((length(result)>0) & (length(teams) != length(result))) stop("(length(results)>0) & (length(teams) != length(result))")
     if ((0.0 > p_draw) | (1.0 <= p_draw)) stop("0.0 <= p_draw < 1.0")
-        
+    if ((p_draw==0.0) & (length(result)>0) & (length(unique(result))!=length(result))) stop("(p_draw=0.0) & (length(result)>0) & (length(unique(result))!=length(result))")
+    
     teams <<- teams
     result <<- result
     p_draw <<- p_draw
@@ -754,6 +755,21 @@ History$methods(
     }
     if (verbose){cat("End\n")}
     return(step)
+  },
+  learning_curves = function(){
+    res = hash()
+    for (b in h$batches){
+      for (a in names(b$skills)){
+        t_p = c(b$time, b$posterior(a))
+        if (has.key(a, res)){
+          i = length(res[[a]])
+          res[[a]][[i+1]] = c(res[[a]],t_p)
+        }else{
+          res[[a]][[1]] = t_p
+        }
+      }
+    }
+    return(res)
   }
 )
 

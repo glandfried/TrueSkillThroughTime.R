@@ -40,5 +40,33 @@ h = History(composition, gamma=0.0)
 
 # Code 7
 lc = h$learning_curves()
-lc$a
-lc$b
+lc.print(lc$a)
+lc.print(lc$b)
+
+# Code 8
+h$convergence()
+lc = h$learning_curves()
+lc.print(lc$a)
+lc.print(lc$b)
+
+#
+
+data = read.csv("input/history.csv", header=T)
+get.composition = function(x){
+    res = list()
+    if (x["double"]=="t"){
+        res[[1]] = c(x["w1_name"],x["w2_name"])
+        res[[2]] = c(x["l1_name"],x["l2_name"])
+    }else{
+        res[[1]] = c(x["w1_name"])
+        res[[2]] = c(x["l1_name"])
+    }
+    return(res)
+}
+
+names(data)
+data$time_start[1]
+
+composition = apply(data, MARGIN=1, FUN=get.composition)
+
+composition[[1]] 

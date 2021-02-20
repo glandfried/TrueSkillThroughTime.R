@@ -16,7 +16,7 @@ library(hash)
 BETA = 1.0
 MU = 0.0
 SIGMA = BETA * 6
-GAMMA = BETA * 0.05
+GAMMA = BETA * 0.03
 P_DRAW = 0.0
 EPSILON = 1e-6
 ITERATIONS = 30
@@ -760,7 +760,7 @@ History$methods(
     res = hash()
     for (b in batches){
       for (a in names(b$skills)){
-        t_p = c(b$time, b$posterior(a))
+        t_p = list(t=b$time, N=b$posterior(a))
         if (has.key(a, res)){
           i = length(res[[a]])
           res[[a]][[i+1]] = t_p
@@ -772,6 +772,20 @@ History$methods(
     return(res)
   }
 )
+
+lc_print <- function(lc.a){
+  res = "["
+  for (i in seq(length(lc.a))){
+    if (i == 1){
+      res = paste0(res,"(",lc.a[[i]][[1]],", Gaussian(mu=",round(lc.a[[i]][[2]]$mu,3),", sigma=",round(lc.a[[i]][[2]]$sigma,3),"))")
+    }else{
+      res = paste0(res,", (",lc.a[[i]][[1]],", Gaussian(mu=",round(lc.a[[i]][[2]]$mu,3),", sigma=",round(lc.a[[i]][[2]]$sigma,3),"))")
+    }
+  }
+  res = paste0(res,"]")
+  cat(res)
+}
+
 
 # 
 # teams = list(ta = c(Rating()), tb = c(Rating()))

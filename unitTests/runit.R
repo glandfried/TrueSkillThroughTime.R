@@ -241,7 +241,7 @@ test_one_batch_history = function(){
     p3 = h1$batches[[3]]$posteriors()
     checkTrue(p3$aj$isapprox(Gaussian(22.904, 6.011),1e-3))
     checkTrue(p3$cj$isapprox(Gaussian(25.11, 5.867),1e-3))
-    step = h1$convergence(T)
+    step = h1$convergence(verbose=T)
     p3 = h1$batches[[3]]$posteriors()
     checkTrue(p3$aj$isapprox(Gaussian(24.999, 5.420),1e-3))
     checkTrue(p3$cj$isapprox(Gaussian(25.001, 5.420),1e-3))
@@ -325,9 +325,6 @@ test_learning_curve = function(){
     checkTrue(lc$aj[[2]][[2]]$isapprox(Gaussian(24.999,5.420),1e-3))
     checkTrue(lc$cj[[2]][[2]]$isapprox(Gaussian(25.001,5.420),13-3))
 }
-
-# TODO: Que el Batch reciba el History del que depende como parametro
-
 
 source("TrueSkill.R")
 if (!require("RUnit", quietly = TRUE)) {

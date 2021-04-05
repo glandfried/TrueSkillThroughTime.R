@@ -668,8 +668,8 @@ History = setRefClass("History",
     beta = "numeric",
     gamma = "numeric",
     p_draw = "numeric",
-    epsilon = "numeric",
-    iterations = "numeric"
+    h_epsilon = "numeric",
+    h_iterations = "numeric"
     )
 )
 History$methods(
@@ -686,7 +686,7 @@ History$methods(
      size <<- length(composition)
      agents <<- agents_
      time <<- length(times) > 0
-     mu <<- mu; sigma <<- sigma; beta <<- beta; gamma <<- gamma; p_draw <<- p_draw; epsilon <<- epsilon; iterations <<- iterations
+     mu <<- mu; sigma <<- sigma; beta <<- beta; gamma <<- gamma; p_draw <<- p_draw; h_epsilon <<- epsilon; h_iterations <<- iterations
      trueskill(composition, results, times)
   },
   show = function(){
@@ -745,7 +745,9 @@ History$methods(
     } #end ELSE
     return(step)
   },
-  convergence = function(verbose=FALSE){
+  convergence = function(epsilon = NA, iterations = NA, verbose=TRUE){
+    if(is.na(epsilon)){epsilon = h_epsilon}
+    if(is.na(iterations)){iterations = h_iterations}
     step = c(Inf, Inf); i = 1
     while (gr_tuple(step,epsilon) & i <= iterations){
       if (verbose){cat(paste0("Iteration = ", i))}

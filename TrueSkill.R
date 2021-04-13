@@ -1,5 +1,6 @@
 library(microbenchmark)
 library(hash)
+library(compiler)
 
 # Y really appreciate R, but: https://www.refsmmat.com/posts/2016-09-12-r-lists.html
 # --
@@ -42,6 +43,7 @@ erfc <- function(x){
     }
     return(r)
 }
+erfc = cmpfun(erfc)
 
 erfcinv <- function(y){#y=0.3
     if (y >= 2) return(-Inf)
@@ -62,6 +64,8 @@ erfcinv <- function(y){#y=0.3
     }
     return(r)
 }
+erfcinv = cmpfun(erfcinv)
+
 
 mu_sigma <- function(tau_, pi_){
   if (pi_ > 0.0){
@@ -74,19 +78,24 @@ mu_sigma <- function(tau_, pi_){
   }
   return(c(0, Inf))
 }
+mu_sigma  = cmpfun(mu_sigma )
+
 
 cdf = function(x, mu, sigma){
   z = -(x - mu) / (sigma * sqrt2)
   return(0.5*erfc(z) )
 }
+cdf = cmpfun(cdf)
 pdf = function(x, mu, sigma){
   normalizer = (sqrt(2*pi) * sigma)^-1
   functional = exp( -((x - mu)^2) / (2*sigma ^2) ) 
   return(normalizer * functional)
 }
+pdf = cmpfun(pdf)
 ppf = function(p, mu, sigma){
   return( mu - sigma * sqrt2 * erfcinv(2 * p))
 }
+ppf = cmpfun(ppf)
 trunc = function(mu, sigma, margin, tie){
   if (!tie){
     alpha_ = (margin-mu)/sigma
@@ -103,13 +112,16 @@ trunc = function(mu, sigma, margin, tie){
   sigma_trunc = sigma * sqrt(1-w)
   return(c(mu_trunc, sigma_trunc))
 }
+trunc = cmpfun(trunc)
 approx = function(N, margin, tie){
-  m_s = trunc(N$mu, N$sigma, margin, tie)
+  m_s = trunc(N@mu, N@sigma, margin, tie)
   return(Gaussian(m_s[1],m_s[2]))
 }
+approx = cmpfun(approx)
 compute_margin = function(p_draw, sd){
   return(abs(ppf(0.5-p_draw/2, 0.0, sd )))
 }
+compute_margin  = cmpfun(compute_margin  )
 max_tuple = function(t1, t2){
   return(c(max(t1[1],t2[1]), max(t1[2],t2[2])))
 }
@@ -119,70 +131,82 @@ gr_tuple = function(tup, threshold){
 sortperm = function(xs, decreasing = F){
   return(order(xs, decreasing = decreasing))
 }
-Gaussian <- setRefClass("Gaussian", 
-                fields = list(mu = "numeric"
-                             ,sigma = "numeric"))
-Gaussian$methods( 
-  initialize = function(mu=MU,sigma=SIGMA) {
+
+Gaussian <- function(mu=0, sigma=1){
     if(sigma>=0.0){
-      mu <<- mu; sigma <<- sigma
+      return(new("Gaussian",mu=mu,sigma=sigma))
     }else{
       stop("Require: (sigma >= 0.0)")
     }
-  },
-  show = function() { cat(paste0("Gaussian(mu=", round(mu,3), ", sigma=", round(sigma,3),")"))},
-  delta = function(M){
-    return( c(abs(mu - M$mu) , abs(sigma - M$sigma)) )
-  },
-  pi = function(){
-    if (sigma > 0.0){return(sigma^-2)
+}
+
+gaussian <- setClass("Gaussian"
+        , representation(mu = "numeric",sigma = "numeric"))
+setMethod("show","Gaussian", function(object) { cat(paste0("Gaussian(mu=", round(object@mu,3), ", sigma=", round(object@sigma,3),")\n"))})
+Pi <- function(a) 0
+setGeneric("Pi")
+setMethod("Pi", "Gaussian", function(a) if (a@sigma > 0.0){return(a@sigma^-2)
+    }else{return(Inf)})
+Tau <- function(a) 0
+setGeneric("Tau")
+setMethod("Tau", "Gaussian", function(a){
+    if (a@sigma > 0.0){return(a@mu*a@sigma^-2)
     }else{return(Inf)}
-  },
-  tau = function(){
-    if (sigma > 0.0){return(mu*sigma^-2)
-    }else{return(Inf)}
-  },
-  forget = function(gamma, t){
-    return(Gaussian(mu,sqrt(sigma^2 + t*gamma^2)))
-  },
-  exclude = function(M){
-    return(Gaussian(mu-M$mu, sqrt(sigma^2 - M$sigma^2)))
-  },
-  isapprox = function(M,tol=1e-4){
-    return(abs(mu-M$mu)<tol & abs(sigma-M$sigma)<tol)
-  }
-)
+  })
+forget <- function(a,gamma,t) 0
+setGeneric("forget")
+setMethod("forget", c("Gaussian","numeric","numeric"), function(a,gamma,t){
+    return(Gaussian(a@mu,sqrt(a@sigma^2 + t*gamma^2)))
+  })
+exclude <- function(N,M) 0
+setGeneric("exclude")
+setMethod("exclude", c("Gaussian","Gaussian"), 
+  function(N,M){
+    return(Gaussian(N@mu-M@mu, sqrt(N@sigma^2 - M@sigma^2)))
+  })
+isapprox <- function(N, M, tol=1e-4) 0
+setGeneric("isapprox")
+setMethod("isapprox", c("Gaussian", "Gaussian", "numeric") , 
+  function(N,M,tol=1e-4){
+    return(abs(N@mu-M@mu)<tol & abs(N@sigma-M@sigma)<tol)
+  })
+delta <- function(N,M) 0
+setGeneric("delta")
+setMethod("delta", c("Gaussian", "Gaussian") , 
+  function(N,M){
+    return( c(abs(N@mu - M@mu) , abs(N@sigma - M@sigma)))
+  })  
 setMethod("+", c("Gaussian", "Gaussian"),
   function(e1, e2) {
-    mu = e1$mu + e2$mu
-    sigma = sqrt((e1$sigma^2) + (e2$sigma^2) )
+    mu = e1@mu + e2@mu
+    sigma = sqrt((e1@sigma^2) + (e2@sigma^2) )
     return(Gaussian(mu,sigma))
 })
 setMethod("-", c("Gaussian", "Gaussian"),
   function(e1, e2) {
-    mu = e1$mu - e2$mu
-    sigma = sqrt((e1$sigma^2) + (e2$sigma^2) )
+    mu = e1@mu - e2@mu
+    sigma = sqrt((e1@sigma^2) + (e2@sigma^2) )
     return(Gaussian(mu,sigma))
 })
 setMethod("*", c("Gaussian", "Gaussian"),
   function(e1, e2) {
-    tau_ = e1$tau() + e2$tau(); pi_ =  e1$pi() + e2$pi()
+    tau_ = Tau(e1) + Tau(e2); pi_ =  Pi(e1) + Pi(e2)
     mu.sigma = mu_sigma(tau_, pi_)
     return(Gaussian(mu.sigma[1],mu.sigma[2]))
 })
 setMethod("/", c("Gaussian", "Gaussian"),
   function(e1, e2) {
-    tau_ = e1$tau() - e2$tau(); pi_ =  e1$pi() - e2$pi()
+    tau_ = Tau(e1) - Tau(e2); pi_ =  Pi(e1) - Pi(e2)
     mu.sigma = mu_sigma(tau_, pi_)
     return(Gaussian(mu.sigma[1],mu.sigma[2]))
 })
 setMethod("==", c("Gaussian", "Gaussian"),
   function(e1, e2) {
-    mu = e1$mu - e2$mu < 1e-3
-    sigma = if (e2$sigma == Inf | e1$sigma == Inf) (e1$sigma==e2$sigma) else  (e1$sigma - e2$sigma < 1e-3)
+    mu = e1@mu - e2@mu < 1e-3
+    sigma = if (e2@sigma == Inf | e1@sigma == Inf) (e1@sigma==e2@sigma) else  (e1@sigma - e2@sigma < 1e-3)
     return(mu & sigma)
 })
-
+  
 
 N01 = Gaussian(0,1)
 N00 = Gaussian(0,0)
@@ -192,144 +216,118 @@ Nms = Gaussian(MU, SIGMA)
 list_diff = function(old, new){
   step = c(0,0)
   for (a in names(old)){#a="0"
-    step = max_tuple(step, old[[a]]$delta(new[[a]]))
+    step = max_tuple(step, delta(old[[a]], new[[a]]))
   }
   return(step)
 }
 
 
-Player <- setRefClass("Player", 
-  fields = list(prior = "Gaussian"
-               ,beta = "numeric"
-               ,gamma = "numeric"
-               ,draw = "Gaussian")
-)
-Player$methods( 
-  initialize = function(prior=Gaussian(MU, SIGMA), beta=BETA, gamma=GAMMA){
-    prior <<- prior; beta <<- beta; gamma <<- gamma; draw <<- Ninf
-  },
-  show = function() { cat(paste0("Player(Gaussian(mu=", round(prior$mu,3), ", sigma=", round(prior$sigma,3),"), beta=",round(beta,3), ", gamma=",round(gamma,3)))},
-  performance = function(){
-    return(Gaussian(prior$mu, sqrt(prior$sigma^2 + beta^2)))
-  }
-)
+Player <- function(prior=Gaussian(MU, SIGMA), beta=BETA, gamma=GAMMA){
+    return(new("Player", prior = prior, beta = beta, gamma = gamma))
+}
+player <- setClass("Player"
+        , representation(prior = "Gaussian",beta = "numeric",gamma = "numeric",draw = "Gaussian"))
+setMethod("show", "Player", 
+  function(object){
+    cat(paste0("Player(Gaussian(mu=", round(object@prior@mu,3), ", sigma=", round(object@prior@sigma,3),"), beta=",round(object@beta,3), ", gamma=",round(object@gamma,3)),")\n")
+  })
+performance <- function(a) 0
+setGeneric("performance")
+setMethod("performance", "Player", 
+  function(a){
+    mu = a@prior@mu
+    sigma = sqrt(a@prior@sigma^2 + a@beta^2)
+    return(Gaussian(mu, sigma))
+  })
 
-team_messages <- setRefClass("team_messages",
-  fields = list(
-    prior = "Gaussian",
+# 
+#   
+# Player <- setRefClass("Player", 
+#   fields = list(prior = "Gaussian"
+#                ,beta = "numeric"
+#                ,gamma = "numeric"
+#                ,draw = "Gaussian")
+# )
+# Player$methods( 
+#   initialize = function(prior=Gaussian(MU, SIGMA), beta=BETA, gamma=GAMMA){
+#     prior <<- prior; beta <<- beta; gamma <<- gamma; draw <<- Ninf
+#   },
+#   show = function() { cat(paste0("Player(Gaussian(mu=", round(prior@mu,3), ", sigma=", round(prior@sigma,3),"), beta=",round(beta,3), ", gamma=",round(gamma,3)),")\n")},
+#   performance = function(){
+#     mu = prior@mu
+#     sigma = sqrt(prior@sigma^2)
+#     sigma = sigma  + beta^2
+#     return(Gaussian(mu, sigma))
+#   }
+# )
+
+team_messages <- function(prior=Ninf, likelihood_lose=Ninf, likelihood_win=Ninf, likelihood_draw=Ninf){
+    return(new("team_messages", prior=prior, likelihood_lose = likelihood_lose,  likelihood_win = likelihood_win, likelihood_draw = likelihood_draw))
+   }
+Team_messages <- setClass("team_messages"
+  , representation(prior = "Gaussian",
     likelihood_lose = "Gaussian",
     likelihood_win = "Gaussian",
     likelihood_draw = "Gaussian")
 )
-team_messages$methods(
-  initialize = function(prior=Ninf, likelihood_lose=Ninf, likelihood_win=Ninf, likelihood_draw=Ninf){
-    prior <<- prior;
-    likelihood_lose <<- likelihood_lose 
-    likelihood_win <<- likelihood_win
-    likelihood_draw <<- likelihood_draw
-  },
-  p = function(){
-    return(prior*likelihood_lose*likelihood_win*likelihood_draw)
-  },
-  posterior = function(){
-    return(prior*likelihood_lose*likelihood_draw)
-  },
-  posterior_win = function(){
-    return(prior*likelihood_lose*likelihood_draw)
-  },
-  posterior_lose = function(){
-    return(prior*likelihood_win*likelihood_draw)
-  },
-  likelihood = function(){
-    return(likelihood_win*likelihood_lose*likelihood_draw)
-  }
-)
+posterior_win  <- function(object) 0
+setGeneric("posterior_win")
+setMethod("posterior_win", "team_messages", function(object){
+  return(object@prior*object@likelihood_lose*object@likelihood_draw)
+})
+posterior_lose  <- function(object) 0
+setGeneric("posterior_lose")
+setMethod("posterior_lose", "team_messages", function(object){
+  return(object@prior*object@likelihood_win*object@likelihood_draw)
+})
+likelihood <- function(object) 0
+setGeneric("likelihood")
+setMethod("likelihood", "team_messages", function(object){
+  return(object@likelihood_win*object@likelihood_lose*object@likelihood_draw)
+  })
 
-draw_messages <- setRefClass("draw_messages",
-  fields = list(
-    prior = "Gaussian",
-    prior_team = "Gaussian",
-    likelihood_lose = "Gaussian",
-    likelihood_win = "Gaussian")
-)
-draw_messages$methods(
-  initialize = function(prior=Ninf, prior_team=Ninf, likelihood_lose=Ninf, likelihood_win=Ninf){
-    prior <<- prior;
-    prior_team <<- prior_team
-    likelihood_lose <<- likelihood_lose
-    likelihood_win <<- likelihood_win
-  },
-  p = function(){
-    return(prior_team*likelihood_lose*likelihood_win)
-  },
-  posterior_win = function(){
-    return(prior_team*likelihood_lose)
-  },
-  posterior_lose = function(){
-    return(prior_team*likelihood_win)
-  },
-  likelihood = function(){
-    return(likelihood_win*likelihood_lose)
-  }
-)
 
-diff_messages <- setRefClass("diff_messages ",
-  fields = list(
-    prior = "Gaussian",
-    likelihood = "Gaussian")
-)
-diff_messages$methods(
-  initialize = function(prior=Ninf, likelihood=Ninf){
-    prior <<- prior
-    likelihood <<- likelihood
-  },
-  p = function(){
-    return(prior*likelihood)
-  }
-)
+diff_messages <- function(prior =Ninf, likelihood=Ninf){
+    return(new("diff_messages", prior=prior, likelihood=likelihood))
+}
+Diff_messages <- setClass("diff_messages",
+  representation( prior = "Gaussian",likelihood = "Gaussian")
+  )
 
-Game <- setRefClass("Game",
-  fields = list(
+Game <- function(teams, result = vector(), p_draw=P_DRAW){
+if ((length(result)>0) & (length(teams) != length(result))) stop("(length(results)>0) & (length(teams) != length(result))")
+    if ((0.0 > p_draw) | (1.0 <= p_draw)) stop("0.0 <= p_draw < 1.0")
+    if ((p_draw==0.0) & (length(result)>0) & (length(unique(result))!=length(result))) stop("(p_draw=0.0) & (length(result)>0) & (length(unique(result))!=length(result))")
+    
+    l_e = compute_likelihoods(teams, result, p_draw)
+    g = new("Game", teams= teams, result = result, p_draw = p_draw, likelihoods = l_e$likelihoods, evidence = l_e$evidence)
+    return(g)
+}
+game <- setClass("Game",
+  representation(
     teams = "list",
     result = "vector",
     p_draw = "numeric",
     likelihoods = "list",
     evidence = "numeric")
 )
-Game$methods(
-  initialize = function(teams, result = vector(), p_draw=P_DRAW){
-    if ((length(result)>0) & (length(teams) != length(result))) stop("(length(results)>0) & (length(teams) != length(result))")
-    if ((0.0 > p_draw) | (1.0 <= p_draw)) stop("0.0 <= p_draw < 1.0")
-    if ((p_draw==0.0) & (length(result)>0) & (length(unique(result))!=length(result))) stop("(p_draw=0.0) & (length(result)>0) & (length(unique(result))!=length(result))")
-    
-    teams <<- teams
-    result <<- result
-    p_draw <<- p_draw
-    likelihoods <<- vector('list', length(teams))
-    evidence <<- 0.0
-    compute_likelihoods()
-  },
-  size = function(){
-    res = rep(NA,length(teams))
-    for (t in seq(length(teams))){ res[t] =length(team[t]) }
-    return(res)
-  },
-  performance = function(i){
-    res = Gaussian(0,0)
-    for (r in teams[[i]]){ res = res + r$performance()}
-    return(res)
-  }
-  ,
-  graphical_model = function(){
+# setMethod("size", "Game", function(object){
+#     res = rep(NA,length(object@teams))
+#     for (t in seq(length(object@teams))){ res[t] =length(team[t]) }
+#     return(res)
+#   })
+graphical_model <- function(teams, result, p_draw){
     r = if (length(result)>0) result else seq(length(teams)-1,0)
     o = sortperm(r, decreasing = T)
     t = vector('list', length(teams))
     d = vector('list', length(teams)-1)
     tie = rep(NA, length(d)); margin =  rep(NA, length(d))
-    for (e in seq(length(teams))){
-      t[[e]] = team_messages(performance(o[e])) }
+    for (e in seq(length(teams))){#e=1
+      team_perf = Gaussian(0,0)
+      for (a in teams[[o[e]]]){ team_perf  = team_perf + performance(a)}
+      t[[e]] = team_messages(team_perf) }
     for (e in seq(length(teams)-1)){ 
-      d[[e]] = diff_messages(t[[e]]$prior - t[[e+1]]$prior) }
+      d[[e]] = diff_messages(t[[e]]@prior - t[[e+1]]@prior) }
     for (e in seq(length(d))){
      tie[e] = r[o[e]]==r[o[e+1]]}
     for (e in seq(length(d))){
@@ -337,104 +335,244 @@ Game$methods(
         margin[e] = 0.0}
       else{ 
         betas = 0
-        for (a in teams[[o[e]]]){betas = betas + a$beta^2}
-        for (a in teams[[o[e+1]]]){betas = betas + a$beta^2}
+        for (a in teams[[o[e]]]){betas = betas + a@beta^2}
+        for (a in teams[[o[e+1]]]){betas = betas + a@beta^2}
         margin[e] = compute_margin(p_draw, sqrt(betas) ) 
       }
     }
-    evidence <<- 1
+    evidence = 1
     for (e in seq(length(d))){
-        mu = d[[e]]$prior$mu; sigma = d[[e]]$prior$sigma
-        evidence <<- evidence * (if (tie[e]) (cdf(margin[e],mu,sigma)-cdf(-margin[e],mu,sigma)) else 1-cdf(margin[e],mu,sigma))
+        mu = d[[e]]@prior@mu; sigma = d[[e]]@prior@sigma
+        evidence = evidence * (if (tie[e]) (cdf(margin[e],mu,sigma)-cdf(-margin[e],mu,sigma)) else 1-cdf(margin[e],mu,sigma))
     }
-    return(list("o"=o, "t"=t, "d"=d, "tie"=tie, "margin"=margin))
-  },
-  likelihood_analitico = function(){
-    gr = graphical_model()
-    d = gr$d[[1]]$prior
-    mu_sigma_trunc =  trunc(d$mu, d$sigma, gr$margin[1], gr$tie[1])
+    return(list("o"=o, "t"=t, "d"=d, "tie"=tie, "margin"=margin, "evidence" = evidence))
+}
+graphical_model = cmpfun(graphical_model )
+likelihood_analitico <- function(teams,result,p_draw,gr){
+    d = gr$d[[1]]@prior
+    mu_sigma_trunc =  trunc(d@mu, d@sigma, gr$margin[1], gr$tie[1])
     mu_trunc = mu_sigma_trunc[1]; sigma_trunc = mu_sigma_trunc[2]
-    if (d$sigma==sigma_trunc){
+    if (d@sigma==sigma_trunc){
       delta_div = 0.0
       theta_div_pow2 = Inf
     }else{
-      delta_div = (d$sigma^2*mu_trunc - sigma_trunc^2*d$mu)/(d$sigma^2-sigma_trunc^2)
-      theta_div_pow2 = (sigma_trunc^2*d$sigma^2)/(d$sigma^2 - sigma_trunc^2)
+      delta_div = (d@sigma^2*mu_trunc - sigma_trunc^2*d@mu)/(d@sigma^2-sigma_trunc^2)
+      theta_div_pow2 = (sigma_trunc^2*d@sigma^2)/(d@sigma^2 - sigma_trunc^2)
     }
     res = vector('list', length(teams))
     for (i in seq(length(teams))){#i=1
       team = vector('list', length(teams[[i]]))
       for (j in seq(length(teams[[i]]))){#j=1
-        mu = if (d$sigma == sigma_trunc) 0.0 else teams[[i]][[j]]$prior$mu + ( delta_div - d$mu)*(-1)^(gr$o[i]==2)
-        sigma_analitico = sqrt(theta_div_pow2 + d$sigma^2 - teams[[i]][[j]]$prior$sigma^2)
+        mu = if (d@sigma == sigma_trunc) 0.0 else teams[[i]][[j]]@prior@mu + ( delta_div - d@mu)*(-1)^(gr$o[i]==2)
+        sigma_analitico = sqrt(theta_div_pow2 + d@sigma^2 - teams[[i]][[j]]@prior@sigma^2)
         team[[j]] = Gaussian(mu,sigma_analitico)
       }
       res[[i]] = team
     }
     return(res)
-  },
-  likelihood_teams = function(){
-    gr = graphical_model()
+}
+likelihood_analitico = cmpfun(likelihood_analitico )
+likelihood_teams <- function(teams,result,p_draw,gr){
     o= gr$o; d = gr$d; t = gr$t; margin = gr$margin; tie = gr$tie 
     step = c(Inf,Inf); i = 0
-    while (gr_tuple(step,1e-6) & i < 10){
+    while (gr_tuple(step,1e-3) & i < 10){
       for (e in seq(length(d)-1)){
-        d[[e]]$prior = t[[e]]$posterior_win() - t[[e+1]]$posterior_lose()
-        d[[e]]$likelihood = approx(d[[e]]$prior,margin[[e]],tie[[e]])/d[[e]]$prior
-        likelihood_lose = t[[e]]$posterior_win() - d[[e]]$likelihood
-        step = max_tuple(step,t[[e+1]]$likelihood_lose$delta(likelihood_lose))
-        t[[e+1]]$likelihood_lose = likelihood_lose
+        d[[e]]@prior = posterior_win(t[[e]]) - posterior_lose(t[[e+1]])
+        d[[e]]@likelihood = approx(d[[e]]@prior,margin[[e]],tie[[e]])/d[[e]]@prior
+        likelihood_lose = posterior_win(t[[e]]) - d[[e]]@likelihood
+        step = max_tuple(step,delta(t[[e+1]]@likelihood_lose,likelihood_lose))
+        t[[e+1]]@likelihood_lose = likelihood_lose
       }
       for (e in seq(length(d),2,-1)){
-        d[[e]]$prior = t[[e]]$posterior_win() - t[[e+1]]$posterior_lose()
-        d[[e]]$likelihood = approx(d[[e]]$prior,margin[[e]],tie[[e]])/d[[e]]$prior
-        likelihood_win = t[[e+1]]$posterior_lose() + d[[e]]$likelihood
-        step = max_tuple(step,t[[e]]$likelihood_win$delta(likelihood_win))
-        t[[e]]$likelihood_win = likelihood_win
+        d[[e]]@prior = posterior_win(t[[e]]) - posterior_lose(t[[e+1]])
+        d[[e]]@likelihood = approx(d[[e]]@prior,margin[[e]],tie[[e]])/d[[e]]@prior
+        likelihood_win = posterior_lose(t[[e+1]]) + d[[e]]@likelihood
+        step = max_tuple(step,delta(t[[e]]@likelihood_win,likelihood_win))
+        t[[e]]@likelihood_win = likelihood_win
       }
       i = i + 1
     }
     if (length(d)==1){
-      d[[1]]$prior = t[[1]]$posterior_win() - t[[2]]$posterior_lose()
-      d[[1]]$likelihood = approx(d[[1]]$prior,margin[[1]],tie[[1]])/d[[1]]$prior
+      d[[1]]@prior = posterior_win(t[[1]]) - posterior_lose(t[[2]])
+      d[[1]]@likelihood = approx(d[[1]]@prior,margin[[1]],tie[[1]])/d[[1]]@prior
     }
-    t[[1]]$likelihood_win = t[[2]]$posterior_lose() + d[[1]]$likelihood
-    t[[length(t)]]$likelihood_lose = t[[length(t)-1]]$posterior_win() - d[[length(d)]]$likelihood
+    t[[1]]@likelihood_win = posterior_lose(t[[2]]) + d[[1]]@likelihood
+    t[[length(t)]]@likelihood_lose = posterior_win(t[[length(t)-1]]) - d[[length(d)]]@likelihood
     res = vector('list', length(t))
-    for (e in seq(length(t))){ res[[e]] = t[[o[e]]]$likelihood()}
+    for (e in seq(length(t))){ res[[e]] = likelihood(t[[o[e]]])}
     return(res)
-  },
-  compute_likelihoods = function(){
+}
+likelihood_teams = cmpfun(likelihood_teams )
+compute_likelihoods <-  function(teams,result,p_draw){
+    gr = graphical_model(teams,result,p_draw)
     if (length(teams)>2){
-      m_t_ft = likelihood_teams()
-      for (e in seq(length(teams))){#e=1
-        res = vector('list', length(teams[[e]]))
+      lhoods = vector('list', length(teams))
+      m_t_ft = likelihood_teams(teams,result,p_draw,gr)
+      for (e in seq(length(teams))){#e=2
+        lhoods[[e]]  = vector('list', length(teams[[e]]))
         for (i in seq(length(teams[[e]]))){#i=1
-          res[[i]] = m_t_ft[[e]] - performance(e)$exclude(teams[[e]][[i]]$prior)
+          team_perf = Gaussian(0,0)
+          for (a in teams[[e]]){ team_perf  = team_perf + performance(a)}
+          ex = exclude(team_perf,teams[[e]][[i]]@prior)
+          lhoods[[e]][[i]] = m_t_ft[[e]] - ex
         }
-        likelihoods[[e]] <<- res
       }
+      return(list("likelihoods"=lhoods, "evidence"=gr$evidence))
     }else{
-      likelihoods <<- likelihood_analitico()
+      return(list("likelihoods"=likelihood_analitico(teams,result,p_draw,gr), "evidence"=gr$evidence))
     }
-  },
-  posteriors = function(){
-    res = vector('list', length(teams))
-    for (e in seq(length(teams))){
-      post = vector('list', length(teams[[e]]))
-      for (i in seq(length(teams[[e]]))){
-        post[[i]] = likelihoods[[e]][[i]] * teams[[e]][[i]]$prior
+}
+compute_likelihoods = cmpfun(compute_likelihoods)
+posteriors <- function(g) 0
+setGeneric("posteriors")
+setMethod("posteriors", "Game", function(g){
+    res = vector('list', length(g@teams))
+    for (e in seq(length(g@teams))){
+      post = vector('list', length(g@teams[[e]]))
+      for (i in seq(length(g@teams[[e]]))){
+        post[[i]] = g@likelihoods[[e]][[i]] * g@teams[[e]][[i]]@prior
       }
-      if (is.null(names(teams))){
+      if (is.null(names(g@teams))){
         res[[e]] = post
       }else{
-        res[[names(teams)[e]]] = post
+        res[[names(g@teams)[e]]] = post
       }
     }
     return(res)
   }
 )
 
+# 
+# 
+#   
+#   
+#   
+#   
+# Game$methods(
+#   size = function(){
+#     res = rep(NA,length(teams))
+#     for (t in seq(length(teams))){ res[t] =length(team[t]) }
+#     return(res)
+#   },
+#   graphical_model = function(){
+#     r = if (length(result)>0) result else seq(length(teams)-1,0)
+#     o = sortperm(r, decreasing = T)
+#     t = vector('list', length(teams))
+#     d = vector('list', length(teams)-1)
+#     tie = rep(NA, length(d)); margin =  rep(NA, length(d))
+#     for (e in seq(length(teams))){#e=1
+#       team_perf = Gaussian(0,0)
+#       for (a in teams[[o[e]]]){ team_perf  = team_perf + performance(a)}
+#       t[[e]] = team_messages(team_perf) }
+#     for (e in seq(length(teams)-1)){ 
+#       d[[e]] = diff_messages(t[[e]]@prior - t[[e+1]]@prior) }
+#     for (e in seq(length(d))){
+#      tie[e] = r[o[e]]==r[o[e+1]]}
+#     for (e in seq(length(d))){
+#       if (p_draw == 0.0){ 
+#         margin[e] = 0.0}
+#       else{ 
+#         betas = 0
+#         for (a in teams[[o[e]]]){betas = betas + a@beta^2}
+#         for (a in teams[[o[e+1]]]){betas = betas + a@beta^2}
+#         margin[e] = compute_margin(p_draw, sqrt(betas) ) 
+#       }
+#     }
+#     evidence <<- 1
+#     for (e in seq(length(d))){
+#         mu = d[[e]]@prior@mu; sigma = d[[e]]@prior@sigma
+#         evidence <<- evidence * (if (tie[e]) (cdf(margin[e],mu,sigma)-cdf(-margin[e],mu,sigma)) else 1-cdf(margin[e],mu,sigma))
+#     }
+#     return(list("o"=o, "t"=t, "d"=d, "tie"=tie, "margin"=margin))
+#   },
+#   likelihood_analitico = function(){
+#     gr = graphical_model()
+#     d = gr$d[[1]]@prior
+#     mu_sigma_trunc =  trunc(d@mu, d@sigma, gr$margin[1], gr$tie[1])
+#     mu_trunc = mu_sigma_trunc[1]; sigma_trunc = mu_sigma_trunc[2]
+#     if (d@sigma==sigma_trunc){
+#       delta_div = 0.0
+#       theta_div_pow2 = Inf
+#     }else{
+#       delta_div = (d@sigma^2*mu_trunc - sigma_trunc^2*d@mu)/(d@sigma^2-sigma_trunc^2)
+#       theta_div_pow2 = (sigma_trunc^2*d@sigma^2)/(d@sigma^2 - sigma_trunc^2)
+#     }
+#     res = vector('list', length(teams))
+#     for (i in seq(length(teams))){#i=1
+#       team = vector('list', length(teams[[i]]))
+#       for (j in seq(length(teams[[i]]))){#j=1
+#         mu = if (d@sigma == sigma_trunc) 0.0 else teams[[i]][[j]]@prior@mu + ( delta_div - d@mu)*(-1)^(gr$o[i]==2)
+#         sigma_analitico = sqrt(theta_div_pow2 + d@sigma^2 - teams[[i]][[j]]@prior@sigma^2)
+#         team[[j]] = Gaussian(mu,sigma_analitico)
+#       }
+#       res[[i]] = team
+#     }
+#     return(res)
+#   },
+#   likelihood_teams = function(){
+#     gr = graphical_model()
+#     o= gr$o; d = gr$d; t = gr$t; margin = gr$margin; tie = gr$tie 
+#     step = c(Inf,Inf); i = 0
+#     while (gr_tuple(step,1e-6) & i < 10){
+#       for (e in seq(length(d)-1)){
+#         d[[e]]@prior = posterior_win(t[[e]]) - posterior_lose(t[[e+1]])
+#         d[[e]]@likelihood = approx(d[[e]]@prior,margin[[e]],tie[[e]])/d[[e]]@prior
+#         likelihood_lose = posterior_win(t[[e]]) - d[[e]]@likelihood
+#         step = max_tuple(step,delta(t[[e+1]]@likelihood_lose,likelihood_lose))
+#         t[[e+1]]@likelihood_lose = likelihood_lose
+#       }
+#       for (e in seq(length(d),2,-1)){
+#         d[[e]]@prior = posterior_win(t[[e]]) - posterior_lose(t[[e+1]])
+#         d[[e]]@likelihood = approx(d[[e]]@prior,margin[[e]],tie[[e]])/d[[e]]@prior
+#         likelihood_win = posterior_lose(t[[e+1]]) + d[[e]]@likelihood
+#         step = max_tuple(step,delta(t[[e]]@likelihood_win,likelihood_win))
+#         t[[e]]@likelihood_win = likelihood_win
+#       }
+#       i = i + 1
+#     }
+#     if (length(d)==1){
+#       d[[1]]@prior = posterior_win(t[[1]]) - posterior_lose(t[[2]])
+#       d[[1]]@likelihood = approx(d[[1]]@prior,margin[[1]],tie[[1]])/d[[1]]@prior
+#     }
+#     t[[1]]@likelihood_win = posterior_lose(t[[2]]) + d[[1]]@likelihood
+#     t[[length(t)]]@likelihood_lose = posterior_win(t[[length(t)-1]]) - d[[length(d)]]@likelihood
+#     res = vector('list', length(t))
+#     for (e in seq(length(t))){ res[[e]] = likelihood(t[[o[e]]])}
+#     return(res)
+#   },
+#   compute_likelihoods = function(){
+#     if (length(teams)>2){
+#       m_t_ft = likelihood_teams()
+#       for (e in seq(length(teams))){#e=1
+#         res = vector('list', length(teams[[e]]))
+#         for (i in seq(length(teams[[e]]))){#i=1
+#           team_perf = Gaussian(0,0)
+#           for (a in teams[[e]]){ team_perf  = team_perf + performance(a)}
+#           ex = exclude(team_perf,teams[[e]][[i]]@prior)
+#           res[[i]] = m_t_ft[[e]] - ex
+#         }
+#         likelihoods[[e]] <<- res
+#       }
+#     }else{
+#       likelihoods <<- likelihood_analitico()
+#     }
+#   },
+#   posteriors = function(){
+#     res = vector('list', length(teams))
+#     for (e in seq(length(teams))){
+#       post = vector('list', length(teams[[e]]))
+#       for (i in seq(length(teams[[e]]))){
+#         post[[i]] = likelihoods[[e]][[i]] * teams[[e]][[i]]@prior
+#       }
+#       if (is.null(names(teams))){
+#         res[[e]] = post
+#       }else{
+#         res[[names(teams)[e]]] = post
+#       }
+#     }
+#     return(res)
+#   }
+# )
 
 Skill <- setRefClass("Skill",
   fields = list(
@@ -471,9 +609,9 @@ Agent$methods(
   },
   receive = function(elapsed){
     if (!(message==Ninf)){
-      res = message$forget(player$gamma, elapsed)
+      res = forget(message,player@gamma, elapsed)
     }else{
-      res = player$prior
+      res = player@prior
     }
     return(res)
   }
@@ -595,7 +733,7 @@ Batch$methods(
   within_prior = function(item){
     r = agents[[item$name]]$player
     ms = skills[[item$name]]$posterior()/item$likelihood
-    return(Player(Gaussian(ms$mu, ms$sigma), r$beta, r$gamma))
+    return(Player(Gaussian(ms@mu, ms@sigma), r@beta, r@gamma))
   },
   within_priors = function(event){
     res = list()
@@ -617,13 +755,13 @@ Batch$methods(
       for (team in events[[e]]$teams){
         i = 1
         for (item in team$items){
-          skills[[item$name]]$likelihood <<- (skills[[item$name]]$likelihood / item$likelihood) * g$likelihoods[[t]][[i]]
-          item$likelihood = g$likelihoods[[t]][[i]]
+          skills[[item$name]]$likelihood <<- (skills[[item$name]]$likelihood / item$likelihood) * g@likelihoods[[t]][[i]]
+          item$likelihood = g@likelihoods[[t]][[i]]
           i = i + 1
         }
         t = t + 1
       }
-      events[[e]]$evidence <<- g$evidence
+      events[[e]]$evidence <<- g@evidence
     }
   },
   convergence = function(epsilon,iterations){
@@ -640,7 +778,7 @@ Batch$methods(
     return(skills[[name]]$posterior_back())
   },
   backward_prior_out = function(name){
-    return(skills[[name]]$posterior_for()$forget(agents[[name]]$player$gamma,skills[[name]]$elapsed))
+    return(forget(skills[[name]]$posterior_for(),agents[[name]]$player@gamma,skills[[name]]$elapsed))
   },
   new_backward_info = function(){
     for (a in names(skills)){
@@ -779,12 +917,12 @@ lc_print <- function(lc.a){
   res = "["
   for (i in seq(length(lc.a))){
     if (i == 1){
-      res = paste0(res,"(",lc.a[[i]][[1]],", Gaussian(mu=",round(lc.a[[i]][[2]]$mu,3),", sigma=",round(lc.a[[i]][[2]]$sigma,3),"))")
+      res = paste0(res,"(",lc.a[[i]][[1]],", Gaussian(mu=",round(lc.a[[i]][[2]]@mu,3),", sigma=",round(lc.a[[i]][[2]]@sigma,3),"))")
     }else{
-      res = paste0(res,", (",lc.a[[i]][[1]],", Gaussian(mu=",round(lc.a[[i]][[2]]$mu,3),", sigma=",round(lc.a[[i]][[2]]$sigma,3),"))")
+      res = paste0(res,", (",lc.a[[i]][[1]],", Gaussian(mu=",round(lc.a[[i]][[2]]@mu,3),", sigma=",round(lc.a[[i]][[2]]@sigma,3),"))")
     }
   }
-  res = paste0(res,"]")
+  res = paste0(res,"]\n")
   cat(res)
 }
 

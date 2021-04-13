@@ -15,9 +15,8 @@ get_composition = function(x){
 }
 
 composition =  apply(data, 1, get_composition ) 
-times = as.Date(data[,"time_start"], format = "%Y-%m-%d")
-times = times - as.Date("1910-01-01", format = "%Y-%m-%d")
-times = as.numeric(times )
+times = as.numeric(as.Date(data[,"time_start"], format = "%Y-%m-%d"))
+#as.Date(times[length(times)], origin=as.Date("1970-01-01", format = "%Y-%m-%d"))
 
 start.time <- Sys.time()
 h = History(composition = composition, times = times, sigma = 1.6, gamma = 0.036)

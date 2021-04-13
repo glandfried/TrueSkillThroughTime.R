@@ -35,7 +35,7 @@ tc = c(a4)
 teams = list(ta, tb, tc)
 result = c(1, 0, 0)
 g = Game(teams, result, p_draw=0.25)
-microbenchmark(Game(teams, result, p_draw=0.25), times=10, unit="s")
+microbenchmark(posteriors(Game(teams, result, p_draw=0.25)), times=10, unit="s")
 profvis(Game(teams))
 
 # Code 6
@@ -45,6 +45,7 @@ c3 = list(c("c"),c("a"))
 composition = list(c1,c2,c3)
 h = History(composition, gamma=0.0)
 microbenchmark(History(composition, gamma=0.0), times=10, unit="s")
+profvis(History(composition, gamma=0.0))
 
 # Code 7
 lc = h$learning_curves()
@@ -73,14 +74,9 @@ for(i in seq(N)){results[[i]] = if(rnorm(1,target[i])>rnorm(1,opponents[i])){c(1
 for(i in seq(N)){times = c(times,i)}
 for(i in seq(N)){priors[[toString(i)]] = Player(Gaussian(opponents[i],0.2))}
 
-start.time <- Sys.time()
 h = History(composition, results, times, priors, gamma=0.015)
-end.time <- Sys.time()
-end.time - start.time
-start.time <- Sys.time()
-h$convergence(iterations=1)
-end.time <- Sys.time()
-end.time - start.time
+microbenchmark(History(composition, results, times, priors, gamma=0.015), times=1, unit="s")
+microbenchmark(h$convergence(iterations=1), times=1, unit="s")
 lc_a = h$learning_curves()$a; mu = c()
 for(tp in lc_a){mu = c(mu,tp[[2]]@mu)}
 

@@ -142,6 +142,19 @@ Gaussian <- function(mu=0, sigma=1){
     }
 }
 
+f_tau <- function(a){
+    if (a@sigma > 0.0){return(a@mu*a@sigma^-2)
+    }else{return(Inf)}
+}
+f_tau = cmpfun(f_tau)
+f_pi <- function(a){
+    if (a@sigma > 0.0){return(a@sigma^-2)
+    }else{return(Inf)}
+}
+f_pi = cmpfun(f_pi)
+
+
+
 gaussian <- setClass("Gaussian"
         , representation(mu = "numeric",sigma = "numeric"))
 setMethod("show","Gaussian", function(object) { cat(paste0("Gaussian(mu=", round(object@mu,3), ", sigma=", round(object@sigma,3),")\n"))})
@@ -185,8 +198,8 @@ mult <- function(N,M) 0
 setGeneric("mult")
 setMethod("mult", c("Gaussian", "Gaussian"),
   function(N, M) {
-    tau_ = Tau(N) + Tau(M)
-    pi_ =  Pi(N) + Pi(M)
+    tau_ = f_tau(N) + f_tau(M)
+    pi_ =  f_pi(N) + f_pi(M)
     mu.sigma = mu_sigma(tau_, pi_)
     N@mu = mu.sigma[1]
     N@sigma = mu.sigma[2]
@@ -212,8 +225,8 @@ div <-  function(N,M) 0
 setGeneric("div")
 setMethod("div", c("Gaussian", "Gaussian"),
   function(N, M) {
-    tau_ = Tau(N) - Tau(M)
-    pi_ =  Pi(N) - Pi(M)
+    tau_ = f_tau(N) - f_tau(M)
+    pi_ =  f_pi(N) - f_pi(M)
     mu.sigma = mu_sigma(tau_, pi_)
     N@mu = mu.sigma[1]
     N@sigma = mu.sigma[2]
@@ -233,7 +246,7 @@ setMethod("-", c("Gaussian", "Gaussian"),
 })
 setMethod("*", c("Gaussian", "Gaussian"),
   function(e1, e2) {
-    tau_ = Tau(e1) + Tau(e2); pi_ =  Pi(e1) + Pi(e2)
+    tau_ = f_tau(e1) + f_tau(e2); pi_ =  f_pi(e1) + f_pi(e2)
     mu.sigma = mu_sigma(tau_, pi_)
     e1@mu = mu.sigma[1]
     e1@sigma = mu.sigma[2]
@@ -241,7 +254,7 @@ setMethod("*", c("Gaussian", "Gaussian"),
 })
 setMethod("/", c("Gaussian", "Gaussian"),
   function(e1, e2) {
-    tau_ = Tau(e1) - Tau(e2); pi_ =  Pi(e1) - Pi(e2)
+    tau_ = f_tau(e1) - f_tau(e2); pi_ =  f_pi(e1) - f_pi(e2)
     mu.sigma = mu_sigma(tau_, pi_)
     e1@mu = mu.sigma[1]
     e1@sigma = mu.sigma[2]
@@ -273,7 +286,7 @@ Player <- function(prior=Nms, beta=BETA, gamma=GAMMA){
     return(new("Player", prior = prior, beta = beta, gamma = gamma))
 }
 player <- setClass("Player"
-        , representation(prior = "Gaussian",beta = "numeric",gamma = "numeric",draw = "Gaussian"))
+        , representation(prior = "Gaussian",beta = "numeric",gamma = "numeric"))
 setMethod("show", "Player", 
   function(object){
     cat(paste0("Player(Gaussian(mu=", round(object@prior@mu,3), ", sigma=", round(object@prior@sigma,3),"), beta=",round(object@beta,3), ", gamma=",round(object@gamma,3)),")\n")
@@ -308,29 +321,28 @@ setMethod("performance", "Player",
 #   }
 # )
 
-team_messages <- function(prior=Ninf, likelihood_lose=Ninf, likelihood_win=Ninf, likelihood_draw=Ninf){
-    return(new("team_messages", prior=prior, likelihood_lose = likelihood_lose,  likelihood_win = likelihood_win, likelihood_draw = likelihood_draw))
+team_messages <- function(prior=Ninf, likelihood_lose=Ninf, likelihood_win=Ninf){
+    return(new("team_messages", prior=prior, likelihood_lose = likelihood_lose,  likelihood_win = likelihood_win))
    }
 Team_messages <- setClass("team_messages"
   , representation(prior = "Gaussian",
     likelihood_lose = "Gaussian",
-    likelihood_win = "Gaussian",
-    likelihood_draw = "Gaussian")
+    likelihood_win = "Gaussian")
 )
 posterior_win  <- function(object) 0
 setGeneric("posterior_win")
 setMethod("posterior_win", "team_messages", function(object){
-  return(mult(mult(object@prior,object@likelihood_lose),object@likelihood_draw))
+  return(mult(object@prior,object@likelihood_lose))
 })
 posterior_lose  <- function(object) 0
 setGeneric("posterior_lose")
 setMethod("posterior_lose", "team_messages", function(object){
-  return(mult(mult(object@prior,object@likelihood_win),object@likelihood_draw))
+  return(mult(object@prior,object@likelihood_win))
 })
 likelihood <- function(object) 0
 setGeneric("likelihood")
 setMethod("likelihood", "team_messages", function(object){
-  return(mult(mult(object@likelihood_win,object@likelihood_lose),object@likelihood_draw))
+  return(mult(object@likelihood_win,object@likelihood_lose))
   })
 
 
@@ -803,13 +815,13 @@ Batch$methods(
       for (team in events[[e]]$teams){
         i = 1
         for (item in team$items){
-          skills[[item$name]]$likelihood <<- mult((div(skills[[item$name]]$likelihood, item$likelihood)) , g@likelihoods[[t]][[i]])
+          skills[[item$name]]$likelihood <- mult((div(skills[[item$name]]$likelihood, item$likelihood)) , g@likelihoods[[t]][[i]])
           item$likelihood = g@likelihoods[[t]][[i]]
           i = i + 1
         }
         t = t + 1
       }
-      events[[e]]$evidence <<- g@evidence
+      events[[e]]$evidence <- g@evidence
     }
   },
   convergence = function(epsilon,iterations){
@@ -830,13 +842,13 @@ Batch$methods(
   },
   new_backward_info = function(){
     for (a in names(skills)){
-      skills[[a]]$backward <<- agents[[a]]$message
+      skills[[a]]$backward <- agents[[a]]$message
     }
     return(iteration())
   },
   new_forward_info = function(){
     for (a in names(skills)){
-      skills[[a]]$forward <<- agents[[a]]$receive(skills[[a]]$elapsed)
+      skills[[a]]$forward <- agents[[a]]$receive(skills[[a]]$elapsed)
     }
     return(iteration())
   }
@@ -892,8 +904,8 @@ History$methods(
       }
       batches <<- if (is.null(batches)) c(b) else c(batches, b)
       for (a in names(b$skills)){
-        agents[[a]]$last_time <<- if (!time) Inf else t
-        agents[[a]]$message <<- b$forward_prior_out(a)
+        agents[[a]]$last_time <- if (!time) Inf else t
+        agents[[a]]$message <- b$forward_prior_out(a)
       }
       i = j + 1
     }    
@@ -912,17 +924,17 @@ History$methods(
     for (a in names(agents)){agents[[a]]$message <<- Ninf}
     for (j in seq(length(batches)-1,1,-1)){
       for (a in names(batches[[j+1]]$skills)){
-        agents[[a]]$message <<- batches[[j+1]]$backward_prior_out(a)
+        agents[[a]]$message <- batches[[j+1]]$backward_prior_out(a)
       }
       old = batches[[j]]$posteriors()
       batches[[j]]$new_backward_info()
       step = max_tuple(step,list_diff(old, batches[[j]]$posteriors()))
     }
     #clean(agents)
-    for (a in names(agents)){agents[[a]]$message <<- Ninf}
+    for (a in names(agents)){agents[[a]]$message <- Ninf}
     for (j in seq(2,length(batches))){
       for (a in names(batches[[j-1]]$skills)){
-        agents[[a]]$message <<- batches[[j-1]]$forward_prior_out(a)
+        agents[[a]]$message <- batches[[j-1]]$forward_prior_out(a)
       }
       old = batches[[j]]$posteriors()
       batches[[j]]$new_forward_info()

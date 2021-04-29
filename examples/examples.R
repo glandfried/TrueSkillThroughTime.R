@@ -6,10 +6,8 @@ library(profvis)
 # Code 1
 mu = 0.0; sigma = 6.0; beta = 1.0; gamma = 0.03; p_draw = 0.0
 a1 = Player(Gaussian(mu, sigma), beta, gamma); a2 = Player(); a3 = Player(); a4 = Player()
-microbenchmark(Gaussian(mu, sigma), times=100, unit="s")
-N = Gaussian(mu, sigma)
-microbenchmark(if(N@sigma>0.0){(1/N@sigma)^-2}, times=100, unit="s")
 
+1- cdf(0,2,sqrt(2))
 
 # Code 2
 team_a = c(a1, a2)
@@ -18,13 +16,12 @@ teams = list(team_a, team_b)
 g = Game(teams)
 # g = Game(teams, c(0,0))
 microbenchmark(posteriors(Game(teams)), times=100, unit="s")
-#profvis(Game(teams))
+#profvis(microbenchmark(posteriors(Game(teams)), times=100, unit="s"))
 
 # Code 3
 lhs = g@likelihoods
 ev = g@evidence
 ev = round(ev, 3)
-print(ev)
 
 # Code 4
 pos = posteriors(g)
@@ -41,6 +38,7 @@ g = Game(teams, result, p_draw=0.25)
 microbenchmark(posteriors(Game(teams, result, p_draw=0.25)), times=20, unit="s")
 
 #profvis(Game(teams))
+profvis(microbenchmark(posteriors(Game(teams, result, p_draw=0.25)), times=20, unit="s"))
 
 # Code 6
 c1 = list(c("a"),c("b"))
@@ -83,19 +81,43 @@ microbenchmark(h$convergence(iterations=1), times=1, unit="s")
 lc_a = h$learning_curves()$a; mu = c()
 for(tp in lc_a){mu = c(mu,tp[[2]]@mu)}
 
+#
 
-##############
+data = read.csv("input/smoothing.csv", stringsAsFactors=FALSE)
+colnames(data)
 
-data = read.csv("input/history.csv", header=T)
-get.composition = function(x){
-    res = list()
-    if (x["double"]=="t"){
-        res[[1]] = c(x["w1_name"],x["w2_name"])
-        res[[2]] = c(x["l1_name"],x["l2_name"])
-    }else{
-        res[[1]] = c(x["w1_name"])
-        res[[2]] = c(x["l1_name"])
-    }
-    return(res)
-}
+p_d_m = 0 # p(D|M) & d1: prior & d2: prior*likelihood_1^1 
+p_d_m_approx = 0 # \widehat{p}(D|M) & d1: prior & d2: prior*likelihood_1^k 
+loocv = 0 # LOOCV & d1: prior*likelihood_2^k & d2: prior*likelihood_1^k
+
+sigma0 <- 3.0
+mu0 <- 0.0
+beta <- 0.5
+
+prior = Gaussian(0.0,3.0)
+# p(D|M) & d1: prior & d2: prior*likelihood_1^1 
+lha_1_1 = Gaussian(data$lh_a_1_mu[1],data$lh_a_1_sigma[1])
+lhb_1_1 = Gaussian(data$lh_b_1_mu[1],data$lh_b_1_sigma[1])
+a2 = Player(prior=prior*lha_1_1, beta=beta)
+b2 = Player(prior=prior*lhb_1_1, beta=beta)
+e2 = Game(list(c(a2),c(b2)),c(0,1))@evidence
+p_d_m = 0.5 * e2
+
+# \widehat{p}(D|M) & d1: prior & d2: prior*likelihood_1^k 
+k = length(data$lh_a_1_mu)
+lha_1_k = Gaussian(data$lh_a_1_mu[k],data$lh_a_1_sigma[k])
+lhb_1_k = Gaussian(data$lh_b_1_mu[k],data$lh_b_1_sigma[k])
+a2 = Player(prior=prior*lha_1_k, beta=beta)
+b2 = Player(prior=prior*lhb_1_k, beta=beta)
+e2 = Game(list(c(a2),c(b2)),c(0,1))@evidence
+p_d_m_approx = 0.5 * e2
+
+# LOOCV & d1: prior*likelihood_2^k & d2: prior*likelihood_1^k
+lha_2_k = Gaussian(data$lh_a_2_mu[k],data$lh_a_2_sigma[k])
+lhb_2_k = Gaussian(data$lh_b_2_mu[k],data$lh_b_2_sigma[k])
+a2 = Player(prior=prior*lha_2_k, beta=beta)
+b2 = Player(prior=prior*lhb_2_k, beta=beta)
+e1 = Game(list(c(a2),c(b2)),c(1,0))@evidence
+
+p_d_m_approx = 0.5 
 

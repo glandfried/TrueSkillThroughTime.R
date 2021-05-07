@@ -270,26 +270,6 @@ setMethod("performance", "Player",
     return(N)
   })
 
-# 
-#   
-# Player <- setRefClass("Player", 
-#   fields = list(prior = "Gaussian"
-#                ,beta = "numeric"
-#                ,gamma = "numeric"
-#                ,draw = "Gaussian")
-# )
-# Player$methods( 
-#   initialize = function(prior=Gaussian(MU, SIGMA), beta=BETA, gamma=GAMMA){
-#     prior <<- prior; beta <<- beta; gamma <<- gamma; draw <<- Ninf
-#   },
-#   show = function() { cat(paste0("Player(Gaussian(mu=", round(prior@mu,3), ", sigma=", round(prior@sigma,3),"), beta=",round(beta,3), ", gamma=",round(gamma,3)),")\n")},
-#   performance = function(){
-#     mu = prior@mu
-#     sigma = sqrt(prior@sigma^2)
-#     sigma = sigma  + beta^2
-#     return(Gaussian(mu, sigma))
-#   }
-# )
 
 team_messages <- function(prior=Ninf, likelihood_lose=Ninf, likelihood_win=Ninf){
     return(new("team_messages", prior=prior, likelihood_lose = likelihood_lose,  likelihood_win = likelihood_win))
@@ -472,137 +452,6 @@ setMethod("posteriors", "Game", function(g){
   }
 )
 
-# 
-# 
-#   
-#   
-#   
-#   
-# Game$methods(
-#   size = function(){
-#     res = rep(NA,length(teams))
-#     for (t in seq(length(teams))){ res[t] =length(team[t]) }
-#     return(res)
-#   },
-#   graphical_model = function(){
-#     r = if (length(result)>0) result else seq(length(teams)-1,0)
-#     o = sortperm(r, decreasing = T)
-#     t = vector('list', length(teams))
-#     d = vector('list', length(teams)-1)
-#     tie = rep(NA, length(d)); margin =  rep(NA, length(d))
-#     for (e in seq(length(teams))){#e=1
-#       team_perf = Gaussian(0,0)
-#       for (a in teams[[o[e]]]){ team_perf  = team_perf + performance(a)}
-#       t[[e]] = team_messages(team_perf) }
-#     for (e in seq(length(teams)-1)){ 
-#       d[[e]] = diff_messages(t[[e]]@prior - t[[e+1]]@prior) }
-#     for (e in seq(length(d))){
-#      tie[e] = r[o[e]]==r[o[e+1]]}
-#     for (e in seq(length(d))){
-#       if (p_draw == 0.0){ 
-#         margin[e] = 0.0}
-#       else{ 
-#         betas = 0
-#         for (a in teams[[o[e]]]){betas = betas + a@beta^2}
-#         for (a in teams[[o[e+1]]]){betas = betas + a@beta^2}
-#         margin[e] = compute_margin(p_draw, sqrt(betas) ) 
-#       }
-#     }
-#     evidence <<- 1
-#     for (e in seq(length(d))){
-#         mu = d[[e]]@prior@mu; sigma = d[[e]]@prior@sigma
-#         evidence <<- evidence * (if (tie[e]) (cdf(margin[e],mu,sigma)-cdf(-margin[e],mu,sigma)) else 1-cdf(margin[e],mu,sigma))
-#     }
-#     return(list("o"=o, "t"=t, "d"=d, "tie"=tie, "margin"=margin))
-#   },
-#   likelihood_analitico = function(){
-#     gr = graphical_model()
-#     d = gr$d[[1]]@prior
-#     mu_sigma_trunc =  trunc(d@mu, d@sigma, gr$margin[1], gr$tie[1])
-#     mu_trunc = mu_sigma_trunc[1]; sigma_trunc = mu_sigma_trunc[2]
-#     if (d@sigma==sigma_trunc){
-#       delta_div = 0.0
-#       theta_div_pow2 = Inf
-#     }else{
-#       delta_div = (d@sigma^2*mu_trunc - sigma_trunc^2*d@mu)/(d@sigma^2-sigma_trunc^2)
-#       theta_div_pow2 = (sigma_trunc^2*d@sigma^2)/(d@sigma^2 - sigma_trunc^2)
-#     }
-#     res = vector('list', length(teams))
-#     for (i in seq(length(teams))){#i=1
-#       team = vector('list', length(teams[[i]]))
-#       for (j in seq(length(teams[[i]]))){#j=1
-#         mu = if (d@sigma == sigma_trunc) 0.0 else teams[[i]][[j]]@prior@mu + ( delta_div - d@mu)*(-1)^(gr$o[i]==2)
-#         sigma_analitico = sqrt(theta_div_pow2 + d@sigma^2 - teams[[i]][[j]]@prior@sigma^2)
-#         team[[j]] = Gaussian(mu,sigma_analitico)
-#       }
-#       res[[i]] = team
-#     }
-#     return(res)
-#   },
-#   likelihood_teams = function(){
-#     gr = graphical_model()
-#     o= gr$o; d = gr$d; t = gr$t; margin = gr$margin; tie = gr$tie 
-#     step = c(Inf,Inf); i = 0
-#     while (gr_tuple(step,1e-6) & i < 10){
-#       for (e in seq(length(d)-1)){
-#         d[[e]]@prior = posterior_win(t[[e]]) - posterior_lose(t[[e+1]])
-#         d[[e]]@likelihood = approx(d[[e]]@prior,margin[[e]],tie[[e]])/d[[e]]@prior
-#         likelihood_lose = posterior_win(t[[e]]) - d[[e]]@likelihood
-#         step = max_tuple(step,delta(t[[e+1]]@likelihood_lose,likelihood_lose))
-#         t[[e+1]]@likelihood_lose = likelihood_lose
-#       }
-#       for (e in seq(length(d),2,-1)){
-#         d[[e]]@prior = posterior_win(t[[e]]) - posterior_lose(t[[e+1]])
-#         d[[e]]@likelihood = approx(d[[e]]@prior,margin[[e]],tie[[e]])/d[[e]]@prior
-#         likelihood_win = posterior_lose(t[[e+1]]) + d[[e]]@likelihood
-#         step = max_tuple(step,delta(t[[e]]@likelihood_win,likelihood_win))
-#         t[[e]]@likelihood_win = likelihood_win
-#       }
-#       i = i + 1
-#     }
-#     if (length(d)==1){
-#       d[[1]]@prior = posterior_win(t[[1]]) - posterior_lose(t[[2]])
-#       d[[1]]@likelihood = approx(d[[1]]@prior,margin[[1]],tie[[1]])/d[[1]]@prior
-#     }
-#     t[[1]]@likelihood_win = posterior_lose(t[[2]]) + d[[1]]@likelihood
-#     t[[length(t)]]@likelihood_lose = posterior_win(t[[length(t)-1]]) - d[[length(d)]]@likelihood
-#     res = vector('list', length(t))
-#     for (e in seq(length(t))){ res[[e]] = likelihood(t[[o[e]]])}
-#     return(res)
-#   },
-#   compute_likelihoods = function(){
-#     if (length(teams)>2){
-#       m_t_ft = likelihood_teams()
-#       for (e in seq(length(teams))){#e=1
-#         res = vector('list', length(teams[[e]]))
-#         for (i in seq(length(teams[[e]]))){#i=1
-#           team_perf = Gaussian(0,0)
-#           for (a in teams[[e]]){ team_perf  = team_perf + performance(a)}
-#           ex = exclude(team_perf,teams[[e]][[i]]@prior)
-#           res[[i]] = m_t_ft[[e]] - ex
-#         }
-#         likelihoods[[e]] <<- res
-#       }
-#     }else{
-#       likelihoods <<- likelihood_analitico()
-#     }
-#   },
-#   posteriors = function(){
-#     res = vector('list', length(teams))
-#     for (e in seq(length(teams))){
-#       post = vector('list', length(teams[[e]]))
-#       for (i in seq(length(teams[[e]]))){
-#         post[[i]] = likelihoods[[e]][[i]] * teams[[e]][[i]]@prior
-#       }
-#       if (is.null(names(teams))){
-#         res[[e]] = post
-#       }else{
-#         res[[names(teams)[e]]] = post
-#       }
-#     }
-#     return(res)
-#   }
-# )
 
 Skill <- setRefClass("Skill",
   fields = list(
@@ -785,13 +634,13 @@ Batch$methods(
       for (team in events[[e]]$teams){
         i = 1
         for (item in team$items){
-          skills[[item$name]]$likelihood <- skills[[item$name]]$likelihood/item$likelihood * g@likelihoods[[t]][[i]]
+          skills[[item$name]]$likelihood <<- skills[[item$name]]$likelihood/item$likelihood * g@likelihoods[[t]][[i]]
           item$likelihood = g@likelihoods[[t]][[i]]
           i = i + 1
         }
         t = t + 1
       }
-      events[[e]]$evidence <- g@evidence
+      events[[e]]$evidence <<- g@evidence
     }
   },
   convergence = function(epsilon,iterations){
@@ -812,13 +661,13 @@ Batch$methods(
   },
   new_backward_info = function(){
     for (a in names(skills)){
-      skills[[a]]$backward <- agents[[a]]$message
+      skills[[a]]$backward <<- agents[[a]]$message
     }
     return(iteration())
   },
   new_forward_info = function(){
     for (a in names(skills)){
-      skills[[a]]$forward <- agents[[a]]$receive(skills[[a]]$elapsed)
+      skills[[a]]$forward <<- agents[[a]]$receive(skills[[a]]$elapsed)
     }
     return(iteration())
   }
@@ -874,8 +723,8 @@ History$methods(
       }
       batches <<- if (is.null(batches)) c(b) else c(batches, b)
       for (a in names(b$skills)){
-        agents[[a]]$last_time <- if (!time) Inf else t
-        agents[[a]]$message <- b$forward_prior_out(a)
+        agents[[a]]$last_time <<- if (!time) Inf else t
+        agents[[a]]$message <<- b$forward_prior_out(a)
       }
       i = j + 1
     }    
@@ -894,17 +743,17 @@ History$methods(
     for (a in names(agents)){agents[[a]]$message <<- Ninf}
     for (j in seq(length(batches)-1,1,-1)){
       for (a in names(batches[[j+1]]$skills)){
-        agents[[a]]$message <- batches[[j+1]]$backward_prior_out(a)
+        agents[[a]]$message <<- batches[[j+1]]$backward_prior_out(a)
       }
       old = batches[[j]]$posteriors()
       batches[[j]]$new_backward_info()
       step = max_tuple(step,list_diff(old, batches[[j]]$posteriors()))
     }
     #clean(agents)
-    for (a in names(agents)){agents[[a]]$message <- Ninf}
+    for (a in names(agents)){agents[[a]]$message <<- Ninf}
     for (j in seq(2,length(batches))){
       for (a in names(batches[[j-1]]$skills)){
-        agents[[a]]$message <- batches[[j-1]]$forward_prior_out(a)
+        agents[[a]]$message <<- batches[[j-1]]$forward_prior_out(a)
       }
       old = batches[[j]]$posteriors()
       batches[[j]]$new_forward_info()

@@ -790,6 +790,15 @@ History$methods(
       }
     }
     return(res)
+  },
+  log_evidence = function(){
+    res = 0
+    for(b in batches){
+        for(e in b$events){
+            res = res + log(e$evidence)
+        }
+    }
+    return(res)
   }
 )
 

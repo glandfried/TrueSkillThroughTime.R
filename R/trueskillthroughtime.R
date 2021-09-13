@@ -1,101 +1,97 @@
-#library(microbenchmark)
 library(hash)
 library(compiler)
 
-# Y really appreciate R, but: https://www.refsmmat.com/posts/2016-09-12-r-lists.html
-# --
-# look: https://bookdown.org/csgillespie/efficientR/programming.html
-# --
-# Environment: http://adv-r.had.co.nz/Environments.html
-# library(pryr)
-
-# --
-# TODO: never to grow vectors. (vec <- rep(NA,10))
-# TODO: hashable structure
-
-
+#' @title BETA
+#' @description Default standard deviation of the performance
+#' @usage The parameter BETA acts as the scale of the estimates. A difference of one BETA between two skills is equivalent to a 76\% probability of winning.
+#' @param BETA The default value is BETA == 1.0
+#' @export
 BETA = 1.0
+#' @title MU
+#' @description The default mean of the skill estimates
+#' @usage Used to create the Players objects
+#' @param MU The default value is MU == 0.0
+#' @export
 MU = 0.0
+#' @title SIGMA
+#' @description The default uncertainty (standar deviation) of the skill estimates
+#' @usage Used to create the Players objects
+#' @param SIGMA The default value is SIGMA == 6.0
+#' @export
 SIGMA = BETA * 6
+#' @title GAMMA
+#' @description The default dynamic factor of the skill estimates
+#' @usage Used to add time-dependent uncertainty
+#' @param GAMMA The default value is GAMMA == 0.03
+#' @export
 GAMMA = BETA * 0.03
+#' @title P_DRAW
+#' @description The default draw probability
+#' @usage Used to compute the prior probability of the observed result
+#' @param P_DRAW The default value is P_DRAW == 0.0
+#' @export
 P_DRAW = 0.0
+#' @title EPSILON
+#' @description The default convergence threshold
+#' @usage Used to stop the convergence procedure
+#' @param EPSILON The default value is EPSILON == 1e-6
+#' @export
 EPSILON = 1e-6
+#' @title ITERATIONS
+#' @description The default maximum number of iterations for convergence
+#' @usage Used to stop the convergence procedure
+#' @param ITERATIONS The default value is ITERATIONS == 1e-6
+#' @export
 ITERATIONS = 30
-PI = 1/(SIGMA^2)
-TAU = MU*PI
 
 sqrt2 = sqrt(2)
 
-erfc <- function(x){
-    z = abs(x)
-    t = 1.0 / (1.0 + z / 2.0)
-    a = -0.82215223 + t * 0.17087277 
-    b =  1.48851587 + t * a
-    c = -1.13520398 + t * b
-    d =  0.27886807 + t * c
-    e = -0.18628806 + t * d
-    f =  0.09678418 + t * e
-    g =  0.37409196 + t * f
-    h =  1.00002368 + t * g
-    r = t * exp(-z * z - 1.26551223 + t * h)
-    if(x < 0){
-        r = 2.0 - r
-    }
-    return(r)
-}
-erfc = cmpfun(erfc)
-
-erfcinv <- function(y){#y=0.3
-    if (y >= 2) return(-Inf)
-    if (y < 0) stop("Argument must be nonnegative")
-    if (y == 0) return(Inf)
-    zero_point = (y < 1)
-    if (! zero_point) y = 2 - y
-    t = sqrt(-2 * log(y / 2.0))
-    x = -0.70711 * ((2.30753 + t * 0.27061) / (1.0 + t * (0.99229 + t * 0.04481)) - t)
-    for (h in c(0,1,2)){
-        err = erfc(x) - y
-        x = x + ( err / (1.12837916709551257 * exp(-(x^2)) - x * err))
-    }
-    if (zero_point){
-        r = x
-    }else{ 
-        r = -x
-    }
-    return(r)
-}
-erfcinv = cmpfun(erfcinv)
-
-
-mu_sigma <- function(tau_, pi_){
-  if (pi_ > 0.0){
-    sigma = sqrt(1/pi_)
-    mu = tau_ / pi_
-    return(c(mu,sigma))
-  }
-  if (pi_ + 1e-9 < 0.0){
-    stop("Precision should be greater than 0")
-  }
-  return(c(0, Inf))
-}
-mu_sigma  = cmpfun(mu_sigma )
-
-
 cdf = function(x, mu, sigma){
-  z = -(x - mu) / (sigma * sqrt2)
-  return(0.5*erfc(z) )
+  z = (x - mu) / (sigma)
+  #return(0.5*erfc(z) )
+  return(pnorm(z))
 }
-cdf = cmpfun(cdf)
 pdf = function(x, mu, sigma){
   normalizer = (sqrt(2*pi) * sigma)^-1
   functional = exp( -((x - mu)^2) / (2*sigma ^2) ) 
   return(normalizer * functional)
 }
-pdf = cmpfun(pdf)
 ppf = function(p, mu, sigma){
-  return( mu - sigma * sqrt2 * erfcinv(2 * p))
+  return(qnorm(p, mu, sigma))
 }
-ppf = cmpfun(ppf)
+
+#' @title compute_margin
+#'
+#' @description A tie occurs when the difference in performance between teams does not exceed a threshold. To keep the probability constant, it is necessary to adapt the threshold according to the uncertainty induced by uncertainty about all individual performances.
+#'
+#' @param p_draw A number, the draw probability (Herbrich propose using the empirical frequency of ties)
+#' @param sd A number, the total uncertainty of individual performances
+#'
+#' @return The margin induced by the draw probability and total uncertainty of individual performances.
+#'
+#' @examples
+#' compute_margin(p_draw = 0.1, sd = 2) 
+#' @export
+compute_margin = function(p_draw, sd){
+  return(abs(ppf(0.5-p_draw/2, 0.0, sd )))
+}
+
+#' @title trunc
+#' @description Gaussian approximation of a truncated Gaussian distribution.
+#'
+#' @param mu A number, the mean of the truncated Gaussian distribution
+#' @param sigma A number, the standar deviation of the truncated Gaussian distribution
+#' @param margin A number, the margin induced by the draw probability
+#' @param tie A bool, TRUE if the game ended in a draw.
+#'
+#' @return A vector with the mean and standar deviation of the Gaussian distribution that best approximate the truncated Gaussian distribution.
+#'
+#' @examples
+#' 
+#' mu_sigma = trunc(mu = 1, sigma = 2, margin = 0.0, tie = F)
+#' mu = mu_sigma[1]; sigma = mu_sigma[2]
+#' mu_sigma = trunc(mu = 1, sigma = 2, margin = 1.0, tie = T)
+#' @export
 trunc = function(mu, sigma, margin, tie){
   if (!tie){
     alpha_ = (margin-mu)/sigma
@@ -112,18 +108,25 @@ trunc = function(mu, sigma, margin, tie){
   sigma_trunc = sigma * sqrt(1-w)
   return(c(mu_trunc, sigma_trunc))
 }
-trunc = cmpfun(trunc)
+
+mu_sigma <- function(tau_, pi_){
+  if (pi_ > 0.0){
+    sigma = sqrt(1/pi_)
+    mu = tau_ / pi_
+    return(c(mu,sigma))
+  }
+  if (pi_ + 1e-9 < 0.0){
+    stop("Precision should be greater than 0")
+  }
+  return(c(0, Inf))
+}
+
 approx = function(N, margin, tie){
   m_s = trunc(N@mu, N@sigma, margin, tie)
   N@mu = m_s[1]
   N@sigma = m_s[2]
   return(N)
 }
-approx = cmpfun(approx)
-compute_margin = function(p_draw, sd){
-  return(abs(ppf(0.5-p_draw/2, 0.0, sd )))
-}
-compute_margin  = cmpfun(compute_margin  )
 max_tuple = function(t1, t2){
   return(c(max(t1[1],t2[1]), max(t1[2],t2[2])))
 }
@@ -134,6 +137,27 @@ sortperm = function(xs, decreasing = F){
   return(order(xs, decreasing = decreasing))
 }
 
+#' @title Gaussian
+#'
+#' @description Gaussian class
+#'
+#' @param mu A number, the mean of the Gaussian distribution
+#' @param sigma A number, the standar deviation of the Gaussian distribution
+#' @param N A Gaussian object
+#' @param gamma The dynamic factor, the uncertainty added
+#' 
+#'
+#' @return Gaussian object
+#'
+#' @examples
+#' N01 = Gaussian(0,1)
+#' Ninf = Gaussian(0,Inf)
+#' N02 = Gaussian(0,2)
+#' 0.25 == Pi(N02)
+#' forget(N = N01, gamma = 0.01, t = 100)
+#' 
+#' @name Gaussian
+#' @export
 Gaussian <- function(mu=0, sigma=1){
     if(sigma>=0.0){
       return(new("Gaussian",mu=mu,sigma=sigma))
@@ -141,41 +165,43 @@ Gaussian <- function(mu=0, sigma=1){
       stop("Require: (sigma >= 0.0)")
     }
 }
-
 f_tau <- function(a){
     if (a@sigma > 0.0){return(a@mu*a@sigma^-2)
     }else{return(Inf)}
 }
-f_tau = cmpfun(f_tau)
 f_pi <- function(a){
     if (a@sigma > 0.0){return(a@sigma^-2)
     }else{return(Inf)}
 }
-f_pi = cmpfun(f_pi)
-
-
-
 gaussian <- setClass("Gaussian"
         , representation(mu = "numeric",sigma = "numeric"))
 setMethod("show","Gaussian", function(object) { cat(paste0("Gaussian(mu=", round(object@mu,3), ", sigma=", round(object@sigma,3),")\n"))})
-Pi <- function(a) 0
+Pi <- function(N) 0
 setGeneric("Pi")
-setMethod("Pi", "Gaussian", function(a) if (a@sigma > 0.0){return(a@sigma^-2)
+#' @rdname Gaussian
+#' @details hola
+#' @export
+setMethod("Pi", "Gaussian", function(N) if (N@sigma > 0.0){return(N@sigma^-2)
     }else{return(Inf)})
-Tau <- function(a) 0
+Tau <- function(N) 0
 setGeneric("Tau")
-setMethod("Tau", "Gaussian", function(a){
-    if (a@sigma > 0.0){return(a@mu*a@sigma^-2)
+#' @rdname Gaussian
+#' @export
+setMethod("Tau", "Gaussian", function(N){
+    if (N@sigma > 0.0){return(N@mu*N@sigma^-2)
     }else{return(Inf)}
   })
-forget <- function(a,gamma,t) 0
+forget <- function(N,gamma,t) 0
 setGeneric("forget")
-setMethod("forget", c("Gaussian","numeric","numeric"), function(a,gamma,t){
-    a@sigma = sqrt(a@sigma^2 + t*gamma^2)
-    return(a)
+#' @rdname Gaussian
+#' @export
+setMethod("forget", c("Gaussian","numeric","numeric"), function(N,gamma,t){
+    N@sigma = sqrt(N@sigma^2 + t*gamma^2)
+    return(N)
   })
 exclude <- function(N,M) 0
 setGeneric("exclude")
+#' @export
 setMethod("exclude", c("Gaussian","Gaussian"), 
   function(N,M){
     N@mu = N@mu-M@mu
@@ -184,28 +210,33 @@ setMethod("exclude", c("Gaussian","Gaussian"),
   })
 isapprox <- function(N, M, tol=1e-4) 0
 setGeneric("isapprox")
+#' @export
 setMethod("isapprox", c("Gaussian", "Gaussian", "numeric") , 
   function(N,M,tol=1e-4){
     return(abs(N@mu-M@mu)<tol & abs(N@sigma-M@sigma)<tol)
   })
 delta <- function(N,M) 0
 setGeneric("delta")
+#' @export
 setMethod("delta", c("Gaussian", "Gaussian") , 
   function(N,M){
     return( c(abs(N@mu - M@mu) , abs(N@sigma - M@sigma)))
   })
+#' @export
 setMethod("+", c("Gaussian", "Gaussian"),
   function(e1, e2) {
     e1@mu = e1@mu + e2@mu
     e1@sigma = sqrt((e1@sigma^2) + (e2@sigma^2) )
     return(e1)
 })
+#' @export
 setMethod("-", c("Gaussian", "Gaussian"),
   function(e1, e2) {
     e1@mu = e1@mu - e2@mu
     e1@sigma = sqrt((e1@sigma^2) + (e2@sigma^2) )
     return(e1)
 })
+#' @export
 setMethod("*", c("Gaussian", "Gaussian"),
   function(e1, e2) {
     tau_ = f_tau(e1) + f_tau(e2); pi_ =  f_pi(e1) + f_pi(e2)
@@ -218,6 +249,7 @@ setMethod("*", c("Gaussian", "Gaussian"),
     }
     return(e1)
 })
+#' @export
 setMethod("/", c("Gaussian", "Gaussian"),
   function(e1, e2) {
     tau_ = f_tau(e1) - f_tau(e2); pi_ =  f_pi(e1) - f_pi(e2)
@@ -230,6 +262,7 @@ setMethod("/", c("Gaussian", "Gaussian"),
     }
     return(e1)
 })
+#' @export
 setMethod("==", c("Gaussian", "Gaussian"),
   function(e1, e2) {
     mu = e1@mu - e2@mu < 1e-3
@@ -251,7 +284,7 @@ list_diff = function(old, new){
   return(step)
 }
 
-
+#' @export
 Player <- function(prior=Nms, beta=BETA, gamma=GAMMA){
     return(new("Player", prior = prior, beta = beta, gamma = gamma))
 }
@@ -263,6 +296,7 @@ setMethod("show", "Player",
   })
 performance <- function(a) 0
 setGeneric("performance")
+#' @export
 setMethod("performance", "Player", 
   function(a){
     N = a@prior
@@ -303,6 +337,7 @@ Diff_messages <- setClass("diff_messages",
   representation( prior = "Gaussian",likelihood = "Gaussian")
   )
 
+#' @export
 Game <- function(teams, result = vector(), p_draw=P_DRAW){
 if ((length(result)>0) & (length(teams) != length(result))) stop("(length(results)>0) & (length(teams) != length(result))")
     if ((0.0 > p_draw) | (1.0 <= p_draw)) stop("0.0 <= p_draw < 1.0")
@@ -356,7 +391,7 @@ graphical_model <- function(teams, result, p_draw){
     }
     return(list("o"=o, "t"=t, "d"=d, "tie"=tie, "margin"=margin, "evidence" = evidence))
 }
-graphical_model = cmpfun(graphical_model )
+#graphical_model = cmpfun(graphical_model )
 likelihood_analitico <- function(teams,result,p_draw,gr){
     d = gr$d[[1]]@prior
     mu_sigma_trunc =  trunc(d@mu, d@sigma, gr$margin[1], gr$tie[1])
@@ -381,7 +416,7 @@ likelihood_analitico <- function(teams,result,p_draw,gr){
     }
     return(res)
 }
-likelihood_analitico = cmpfun(likelihood_analitico )
+#likelihood_analitico = cmpfun(likelihood_analitico )
 likelihood_teams <- function(teams,result,p_draw,gr){
     o= gr$o; d = gr$d; t = gr$t; margin = gr$margin; tie = gr$tie 
     step = c(Inf,Inf); i = 0
@@ -412,7 +447,7 @@ likelihood_teams <- function(teams,result,p_draw,gr){
     for (e in seq(length(t))){ res[[e]] = likelihood(t[[o[e]]])}
     return(res)
 }
-likelihood_teams = cmpfun(likelihood_teams )
+#likelihood_teams = cmpfun(likelihood_teams )
 compute_likelihoods <-  function(teams,result,p_draw){
     gr = graphical_model(teams,result,p_draw)
     if (length(teams)>2){
@@ -432,9 +467,10 @@ compute_likelihoods <-  function(teams,result,p_draw){
       return(list("likelihoods"=likelihood_analitico(teams,result,p_draw,gr), "evidence"=gr$evidence))
     }
 }
-compute_likelihoods = cmpfun(compute_likelihoods)
+#compute_likelihoods = cmpfun(compute_likelihoods)
 posteriors <- function(g) 0
 setGeneric("posteriors")
+#' @export
 setMethod("posteriors", "Game", function(g){
     res = vector('list', length(g@teams))
     for (e in seq(length(g@teams))){
@@ -451,7 +487,6 @@ setMethod("posteriors", "Game", function(g){
     return(res)
   }
 )
-
 
 Skill <- setRefClass("Skill",
   fields = list(
@@ -673,7 +708,7 @@ Batch$methods(
   }
 )
 
-
+#' @export
 History = setRefClass("History",
   fields = list(
     size = "numeric",
@@ -763,6 +798,7 @@ History$methods(
     } #end ELSE
     return(step)
   },
+  #' @export
   convergence = function(epsilon = NA, iterations = NA, verbose=TRUE){
     if(is.na(epsilon)){epsilon = h_epsilon}
     if(is.na(iterations)){iterations = h_iterations}
@@ -802,6 +838,7 @@ History$methods(
   }
 )
 
+#' @export
 lc_print <- function(lc.a){
   res = "["
   for (i in seq(length(lc.a))){

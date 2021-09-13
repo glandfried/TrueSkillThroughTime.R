@@ -3,11 +3,11 @@ if (!require("RUnit", quietly = TRUE)) {
 }
 
 # Path to the unit tests folder in the package
-dir <- system.file(".", package="TrueSkill")
+dir <- system.file("./R", package="trueskillthroughtime")
 
 
 # Define RUnit test suite
-suite <- defineTestSuite(name=paste("TrueSkill", "RUnit Tests"),
+suite <- defineTestSuite(name=paste("trueskillthroughtime", "RUnit Tests"),
                          dirs="unitTests",
                          testFileRegexp = "runit.R",
                          testFuncRegexp = "^test_+",

@@ -1,5 +1,8 @@
 # TrueSkillThroughTime.R
 
+	devtools::install_github("glandfried/TrueSkillThroughTime.R")
+	library(TrueSkillThroughTime)	
+
 None of the commonly used skill estimators, such as TrueSkill, Glicko and Item-Response Theory, correctly models the temporal aspect, which prevents having both good initial estimates and comparability between estimates separated in time and space.
 
 TrueSkill Through Time corrects those biases by modeling the entire history of activities using a single Bayesian network.

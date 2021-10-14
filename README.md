@@ -8,6 +8,8 @@ The you can use it
 
 	library(TrueSkillThroughTime)
 
+## Manual
+
 Here is the last pdf version of the manual:  [TrueSkillThroughTime.R](https://github.com/glandfried/TrueSkillThroughTime.R/releases/download/manual/TrueSkillThroughTime.R.pdf)
 
 ## Article 

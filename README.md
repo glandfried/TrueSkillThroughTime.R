@@ -1,15 +1,26 @@
 # TrueSkillThroughTime.R
 
+## Install
+
 	devtools::install_github("glandfried/TrueSkillThroughTime.R")
-	library(TrueSkillThroughTime)	
+
+The you can use it
+
+	library(TrueSkillThroughTime)
+
+Here is the last pdf version of the manual:  [TrueSkillThroughTime.R](https://github.com/glandfried/TrueSkillThroughTime.R/releases/download/manual/TrueSkillThroughTime.R.pdf)
+
+## Article 
+
+A full technical documentation is discribed at:
+
+0.  English. [Last version](https://github.com/glandfried/TrueSkillThroughTime/releases/download/doc/landfried-learning.pdf)
+0.  Español. [Última versión](https://github.com/glandfried/TrueSkillThroughTime/releases/download/doc/landfried-aprendizaje.pdf)
 
 None of the commonly used skill estimators, such as TrueSkill, Glicko and Item-Response Theory, correctly models the temporal aspect, which prevents having both good initial estimates and comparability between estimates separated in time and space.
 
 TrueSkill Through Time corrects those biases by modeling the entire history of activities using a single Bayesian network.
 The use of an efficient algorithm, that requires only a few linear iterations over the data, allows scaling to millions of observations in few seconds.
-
-A full scientific documentation is discribed at [TrueSkill Through Time: the Julia, Python and R packages](https://github.com/glandfried/TrueSkillThroughTime/releases/download/doc/landfried-learning.pdf) (Versión en español [aquí](https://github.com/glandfried/TrueSkillThroughTime/releases/download/doc/landfried-aprendizaje.pdf)).
-
 
 ### Parameters
 

@@ -1,4 +1,4 @@
-source("./R/trueskillthroughtime.R")
+devtools::load_all("../TrueSkillThroughTime.R")
 library(profvis)
 if (!require("RUnit", quietly = TRUE)) {
   stop("Package Runit is not found.") 
@@ -15,7 +15,7 @@ test_ppf = function(){
 }
 test_cdf = function(){
     checkEquals(cdf(0.3,0,1),0.61791142218895)
-    checkEquals(cdf(0.3,2,3),0.28547033)
+    checkEquals(cdf(0.3,2,3),0.28547033590144)
 }
 test_pdf = function(){
     checkEquals(pdf(0.3,0,1),0.38138781)
@@ -23,9 +23,9 @@ test_pdf = function(){
     checkEquals(pdf(0.3,2,3),0.11325579)
 }
 test_compute_margin = function(){
-    checkEquals(compute_margin(0.25,sqrt(2)*25.0/6),1.8776005988)
-    checkEquals(compute_margin(0.25,sqrt(3)*25.0/6),2.29958170)
-    checkEquals(compute_margin(0.0,sqrt(3)*25.0/6),2.7134875810e-07)
+    checkEquals(compute_margin(0.25,sqrt(2)*25.0/6),1.87760045843)
+    checkEquals(compute_margin(0.25,sqrt(3)*25.0/6),2.299581531990)
+    checkEquals(compute_margin(0.0,sqrt(3)*25.0/6),0.0)
 }
 test_trunc = function(){
     checkEquals(trunc(0,1,0.,FALSE),c(0.79788456080,0.602810274989087) )
@@ -144,7 +144,7 @@ test_game_evidence_1vs1vs1 = function(){
     proba = proba + g_bca@evidence
     proba = proba + g_cab@evidence
     proba = proba + g_cba@evidence
-    checkEquals(proba,1.49999991)
+    checkEquals(proba,1.5)
 }
 test_forget = function(){
     gamma = 0.15*25.0/3

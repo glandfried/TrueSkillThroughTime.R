@@ -5,7 +5,8 @@ None of the commonly used skill estimators, such as TrueSkill, Glicko and Item-R
 TrueSkill Through Time corrects those biases by modeling the entire history of activities using a single Bayesian network.
 The use of an efficient algorithm, that requires only a few linear iterations over the data, allows scaling to millions of observations in few seconds.
 
-A full scientific documentation is discribed at [TrueSkill Through Time: the Julia, Python and R packages](https://github.com/glandfried/TrueSkillThroughTime/releases/download/doc.0.0.0/article-en.pdf) (Versión en español [aquí](https://github.com/glandfried/TrueSkillThroughTime/releases/download/doc.0.0.0/article-es.pdf)).
+A full scientific documentation is discribed at [TrueSkill Through Time: the Julia, Python and R packages](https://github.com/glandfried/TrueSkillThroughTime/releases/download/doc/landfried-learning.pdf) (Versión en español [aquí](https://github.com/glandfried/TrueSkillThroughTime/releases/download/doc/landfried-aprendizaje.pdf)).
+
 
 ### Parameters
 

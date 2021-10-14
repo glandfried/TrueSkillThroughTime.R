@@ -1,97 +1,31 @@
 library(hash)
 library(compiler)
 
-#' @title BETA
-#' @description Default standard deviation of the performance
-#' @usage The parameter BETA acts as the scale of the estimates. A difference of one BETA between two skills is equivalent to a 76\% probability of winning.
-#' @param BETA The default value is BETA == 1.0
-#' @export
 BETA = 1.0
-#' @title MU
-#' @description The default mean of the skill estimates
-#' @usage Used to create the Players objects
-#' @param MU The default value is MU == 0.0
-#' @export
 MU = 0.0
-#' @title SIGMA
-#' @description The default uncertainty (standar deviation) of the skill estimates
-#' @usage Used to create the Players objects
-#' @param SIGMA The default value is SIGMA == 6.0
-#' @export
 SIGMA = BETA * 6
-#' @title GAMMA
-#' @description The default dynamic factor of the skill estimates
-#' @usage Used to add time-dependent uncertainty
-#' @param GAMMA The default value is GAMMA == 0.03
-#' @export
 GAMMA = BETA * 0.03
-#' @title P_DRAW
-#' @description The default draw probability
-#' @usage Used to compute the prior probability of the observed result
-#' @param P_DRAW The default value is P_DRAW == 0.0
-#' @export
 P_DRAW = 0.0
-#' @title EPSILON
-#' @description The default convergence threshold
-#' @usage Used to stop the convergence procedure
-#' @param EPSILON The default value is EPSILON == 1e-6
-#' @export
 EPSILON = 1e-6
-#' @title ITERATIONS
-#' @description The default maximum number of iterations for convergence
-#' @usage Used to stop the convergence procedure
-#' @param ITERATIONS The default value is ITERATIONS == 1e-6
-#' @export
 ITERATIONS = 30
 
 sqrt2 = sqrt(2)
 
 cdf = function(x, mu, sigma){
   z = (x - mu) / (sigma)
-  #return(0.5*erfc(z) )
   return(pnorm(z))
 }
 pdf = function(x, mu, sigma){
-  normalizer = (sqrt(2*pi) * sigma)^-1
-  functional = exp( -((x - mu)^2) / (2*sigma ^2) ) 
-  return(normalizer * functional)
+  return(dnorm(x,mu,sigma))
 }
 ppf = function(p, mu, sigma){
   return(qnorm(p, mu, sigma))
 }
 
-#' @title compute_margin
-#'
-#' @description A tie occurs when the difference in performance between teams does not exceed a threshold. To keep the probability constant, it is necessary to adapt the threshold according to the uncertainty induced by uncertainty about all individual performances.
-#'
-#' @param p_draw A number, the draw probability (Herbrich propose using the empirical frequency of ties)
-#' @param sd A number, the total uncertainty of individual performances
-#'
-#' @return The margin induced by the draw probability and total uncertainty of individual performances.
-#'
-#' @examples
-#' compute_margin(p_draw = 0.1, sd = 2) 
-#' @export
 compute_margin = function(p_draw, sd){
   return(abs(ppf(0.5-p_draw/2, 0.0, sd )))
 }
 
-#' @title trunc
-#' @description Gaussian approximation of a truncated Gaussian distribution.
-#'
-#' @param mu A number, the mean of the truncated Gaussian distribution
-#' @param sigma A number, the standar deviation of the truncated Gaussian distribution
-#' @param margin A number, the margin induced by the draw probability
-#' @param tie A bool, TRUE if the game ended in a draw.
-#'
-#' @return A vector with the mean and standar deviation of the Gaussian distribution that best approximate the truncated Gaussian distribution.
-#'
-#' @examples
-#' 
-#' mu_sigma = trunc(mu = 1, sigma = 2, margin = 0.0, tie = F)
-#' mu = mu_sigma[1]; sigma = mu_sigma[2]
-#' mu_sigma = trunc(mu = 1, sigma = 2, margin = 1.0, tie = T)
-#' @export
 trunc = function(mu, sigma, margin, tie){
   if (!tie){
     alpha_ = (margin-mu)/sigma
@@ -141,21 +75,26 @@ sortperm = function(xs, decreasing = F){
 #'
 #' @description Gaussian class
 #'
-#' @param mu A number, the mean of the Gaussian distribution
-#' @param sigma A number, the standar deviation of the Gaussian distribution
+#' @param mu A number, the mean of the Gaussian distribution.
+#' @param sigma A number, the standar deviation of the Gaussian distribution.
 #' @param N A Gaussian object
 #' @param gamma The dynamic factor, the uncertainty added
-#' 
 #'
 #' @return Gaussian object
 #'
 #' @examples
-#' N01 = Gaussian(0,1)
-#' Ninf = Gaussian(0,Inf)
-#' N02 = Gaussian(0,2)
-#' 0.25 == Pi(N02)
-#' forget(N = N01, gamma = 0.01, t = 100)
-#' 
+#' N01 = Gaussian(0,1); N12 = Gaussian(mu = 1, sigma = 2)
+#' N06 = Gaussian(); Ninf = Gaussian(0,Inf)
+#' N01 * Ninf == N01
+#' N01 * N12
+#' N01 / N12
+#' N01 + N12
+#' N01 - N12
+#' Pi(N12) == 1/(N12@sigma^2)
+#' Tau(N12) == N12@mu/(N12@sigma^2)
+#' Nnew = forget(N = N01, gamma = 0.01, t = 100)
+#' isapprox(Nnew, Gaussian(N01@mu,sqrt(N01@sigma^2+100*(0.01^2))), tol=1e-6)
+#'
 #' @name Gaussian
 #' @export
 Gaussian <- function(mu=0, sigma=1){
@@ -179,7 +118,6 @@ setMethod("show","Gaussian", function(object) { cat(paste0("Gaussian(mu=", round
 Pi <- function(N) 0
 setGeneric("Pi")
 #' @rdname Gaussian
-#' @details hola
 #' @export
 setMethod("Pi", "Gaussian", function(N) if (N@sigma > 0.0){return(N@sigma^-2)
     }else{return(Inf)})
@@ -201,7 +139,6 @@ setMethod("forget", c("Gaussian","numeric","numeric"), function(N,gamma,t){
   })
 exclude <- function(N,M) 0
 setGeneric("exclude")
-#' @export
 setMethod("exclude", c("Gaussian","Gaussian"), 
   function(N,M){
     N@mu = N@mu-M@mu
@@ -210,6 +147,7 @@ setMethod("exclude", c("Gaussian","Gaussian"),
   })
 isapprox <- function(N, M, tol=1e-4) 0
 setGeneric("isapprox")
+#' @rdname Gaussian
 #' @export
 setMethod("isapprox", c("Gaussian", "Gaussian", "numeric") , 
   function(N,M,tol=1e-4){
@@ -217,11 +155,11 @@ setMethod("isapprox", c("Gaussian", "Gaussian", "numeric") ,
   })
 delta <- function(N,M) 0
 setGeneric("delta")
-#' @export
 setMethod("delta", c("Gaussian", "Gaussian") , 
   function(N,M){
     return( c(abs(N@mu - M@mu) , abs(N@sigma - M@sigma)))
   })
+#' @rdname Gaussian
 #' @export
 setMethod("+", c("Gaussian", "Gaussian"),
   function(e1, e2) {
@@ -229,6 +167,7 @@ setMethod("+", c("Gaussian", "Gaussian"),
     e1@sigma = sqrt((e1@sigma^2) + (e2@sigma^2) )
     return(e1)
 })
+#' @rdname Gaussian
 #' @export
 setMethod("-", c("Gaussian", "Gaussian"),
   function(e1, e2) {
@@ -236,6 +175,7 @@ setMethod("-", c("Gaussian", "Gaussian"),
     e1@sigma = sqrt((e1@sigma^2) + (e2@sigma^2) )
     return(e1)
 })
+#' @rdname Gaussian
 #' @export
 setMethod("*", c("Gaussian", "Gaussian"),
   function(e1, e2) {
@@ -249,6 +189,7 @@ setMethod("*", c("Gaussian", "Gaussian"),
     }
     return(e1)
 })
+#' @rdname Gaussian
 #' @export
 setMethod("/", c("Gaussian", "Gaussian"),
   function(e1, e2) {
@@ -262,6 +203,7 @@ setMethod("/", c("Gaussian", "Gaussian"),
     }
     return(e1)
 })
+#' @rdname Gaussian
 #' @export
 setMethod("==", c("Gaussian", "Gaussian"),
   function(e1, e2) {
@@ -270,7 +212,6 @@ setMethod("==", c("Gaussian", "Gaussian"),
     return(mu & sigma)
 })
   
-
 N01 = Gaussian(0,1)
 N00 = Gaussian(0,0)
 Ninf = Gaussian(0,Inf)
@@ -284,6 +225,31 @@ list_diff = function(old, new){
   return(step)
 }
 
+#' @title Player
+#'
+#' @description Player class
+#'
+#' @param prior A Gaussian object, the prior belief distribution of the skills. The 
+#' default value is: \code{Nms = Gaussian(mu = 0, sigma = 6)}.
+#' @param beta A number, the standard deviation of the performance. The default 
+#' value is: \code{BETA = 1}. The parameter \code{beta} acts as the scale of the 
+#' estimates. A real difference of one \code{beta} between two skills is equivalent 
+#' to 76\% probability of winning.
+#' @param gamma A number, the amount of uncertainty (standar deviation) added to 
+#' the estimates at each time step. The default value is: \code{GAMMA = 0.03}.
+#'
+#'
+#' @return Player object
+#'
+#' @examples
+#' a1 = Player(prior = Gaussian(0,6), beta = 1, gamma = 0.03); 
+#' a2 = Player()
+#' a1 == a2 
+#' N = performance(a1) 
+#' N@mu == p1@prior@mu
+#' N@sigma == sqrt(p@prior@sigma^2 + p@beta^2)
+#'
+#' @name Player
 #' @export
 Player <- function(prior=Nms, beta=BETA, gamma=GAMMA){
     return(new("Player", prior = prior, beta = beta, gamma = gamma))
@@ -296,14 +262,12 @@ setMethod("show", "Player",
   })
 performance <- function(a) 0
 setGeneric("performance")
+#' @rdname Player
 #' @export
 setMethod("performance", "Player", 
   function(a){
-    N = a@prior
-    N@sigma = sqrt(a@prior@sigma^2 + a@beta^2)
-    return(N)
+    return(Gaussian(a@prior@mu,sqrt(a@prior@sigma^2 + a@beta^2)))
   })
-
 
 team_messages <- function(prior=Ninf, likelihood_lose=Ninf, likelihood_win=Ninf){
     return(new("team_messages", prior=prior, likelihood_lose = likelihood_lose,  likelihood_win = likelihood_win))
@@ -337,6 +301,50 @@ Diff_messages <- setClass("diff_messages",
   representation( prior = "Gaussian",likelihood = "Gaussian")
   )
 
+#' @title Game
+#'
+#' @description Game class
+#'
+#' @param teams A list of \code{Player} objects. Each position represents a team,
+#' so it must contain a vector of \code{Player} objects. 
+#' @param result A vector of numbers, with the score obtained by each team, or
+#' an empty vector. The default value is an empty vector. In this case, the
+#' outcome is defined by the order in which the \code{teams} list was initialized:
+#' the teams appearing firstly in the list defeat those appearing later (no ties). If 
+#' the list is not empty, it must have the same length as the \code{teams} list. In 
+#' this last case, the team with the highest score is the winner, and the teams with 
+#' the same score are tied.
+#' @param p_draw A number, the probability of a draw. The default value is 
+#' \code{P_DRAW = 0}. A rule of thumb states that the probability of a draw must be 
+#' initialized with the observed frequency of draws. If in doubt, it is a candidate 
+#' parameter to be optimized or integrated by the sum rule. It is used to compute 
+#' the prior probability of the observed result, so its value may affect an 
+#' eventual model selection task.
+#'
+#' @return Game object
+#'
+#' @examples
+#' a1 = Player(Gaussian(mu=1, sigma=6), beta=1, gamma=0.03)
+#' a2 = Player(); a3 = Player(); a4 = Player()
+#' team_a = c(a1, a2)
+#' team_b = c(a3, a4)
+#' teams = list(team_a, team_b)
+#' 
+#' g = Game(teams) 
+#' post = posteriors(g)
+#' lhs = g@likelihoods
+#' pos[[1]][[1]] == lhs[[1]][[1]]*a1@prior 
+#' ev = g@evidence
+#' ev == 0.5
+#'
+#' ta = c(a1)
+#' tb = c(a2, a3)
+#' tc = c(a4)
+#' teams_3 = list(ta, tb, tc)
+#' result = c(1, 0, 0)
+#' g3 = Game(teams_3, result, p_draw=0.25)
+#'
+#' @name Game
 #' @export
 Game <- function(teams, result = vector(), p_draw=P_DRAW){
 if ((length(result)>0) & (length(teams) != length(result))) stop("(length(results)>0) & (length(teams) != length(result))")
@@ -470,6 +478,7 @@ compute_likelihoods <-  function(teams,result,p_draw){
 #compute_likelihoods = cmpfun(compute_likelihoods)
 posteriors <- function(g) 0
 setGeneric("posteriors")
+#' @rdname Game
 #' @export
 setMethod("posteriors", "Game", function(g){
     res = vector('list', length(g@teams))
@@ -708,7 +717,123 @@ Batch$methods(
   }
 )
 
-#' @export
+#' @title History
+#' 
+#' @description History class
+#' @import hash
+#'
+#' @param composition A list of list of player's names (id). Each position of the 
+#' list is a list that represents the teams of a game, so the latter must contain
+#' vectors of names representing the composition of each team in that game.
+#' @param results A list of numeric vectors, representing the outcome of each 
+#' game. It must have the same 
+#' length as the \code{composition} list or be an empty list. The default value is #' an empty list.
+#' When the list is empty, the outcomes of the games are inferred by the order of
+#' the teams in the \code{composition} list: the teams appearing firstly in the list 
+#' defeat those appearing later (no ties).
+#' When the list is not empty, each vector of the list must represents the score of #' each team in the game. The team with the highest score is 
+#' the winner, and the teams with the same score are tied.
+#' @param times A numeric vector, the timestamp of each game. It must have the 
+#' same length as the \code{composition} list or be an empty list. The default value 
+#' is an empty list. When the list is empty, all players' games are 
+#' separated by a single timestamp, so a single dynamic uncertainty \code{gamma} will be added between games.
+#' When the list is not empty, the amount of dynamic uncertainty will depend on the difference (measured in timestamps) that each player has between games.
+#' In addition, the order of the timestamps determines the reading order of the \code{composition} and \code{results} lists.
+#' If a player appears more than once in the same timestamp, no dynamic uncertainty will be added between those games.
+#' @param priors A hash object, a dictionary of \code{Player} objects indexed by the 
+#' players' name (id). Used to create players with special values. The default
+#' value is an empty hash. In this case, one \code{Player} object for each unique 
+#' name in the \code{composition} list is automatically initialized using the values 
+#' of the parameters \code{mu}, \code{sigma}, \code{beta}, and \code{gamma}.
+#' The names that appear in the hash are the only ones that will be initialized 
+#' with special values.
+#' @param mu A number, the prior mean. The deafult value is: \code{MU = 0}.
+#' @param sigma A number, the prior standar deviation. The deafult value is: 
+#' \code{SIGMA = 6}.
+#' @param beta A number, the standard deviation of the performance. The default 
+#' value is: \code{BETA = 1}. The parameter \code{beta} acts as the scale of the 
+#' estimates. A real difference of one \code{beta} between two skills is equivalent 
+#' to 76\% probability of winning.
+#' @param gamma A number, the amount of uncertainty (standar deviation) added to 
+#' the estimates between events. The default value is: \code{GAMMA = 0.03}.
+#' @param p_draw A number, the probability of a draw. The default value is 
+#' \code{P_DRAW = 0}. A rule of thumb states that the probability of a draw must be 
+#' initialized with the observed frequency of draws. If in doubt, it is a candidate 
+#' parameter to be optimized or integrated by the sum rule. It is used to compute 
+#' the prior probability of the observed result, so its value may affect an 
+#' eventual model selection task.
+#' @param epsilon A number, the convergence threshold. Used to stop the convergence procedure. The default value is \code{EPSILON = 1e-6}.
+#' @param iterations A number, the maximum number of iterations for convergence. Used to stop the convergence procedure. The default value is \code{ITERATIONS = 30}.
+#'
+#' @field size A number, the amount of games.
+#' @field batches A vector of \code{Batch} objects. Where the games that occur at the same timestamp live.
+#' @field agents A hash, a dictionary indexed by the players' name (id).
+#' @field time A boolean, indicating whether the history was initialized with timestamps or not.
+#' @field mu A number, the default prior mean in this particular \code{History} object
+#' @field sigma A number, the default prior standard deviation in this particular \code{History} object
+#' @field beta A number, the default standar deviation of the performance in this particular \code{History} object
+#' @field gamma A number, the default dynamic uncertainty in this particular \code{History} object
+#' @field p_draw A number, the probability of a draw in this particular \code{History} object
+#' @field h_epsilon A number, the convergence threshold in this particular \code{History} object
+#' @field h_iterations A number, the maximum number of iterations for convergence in this particular \code{History} object
+#'
+#' @name History
+#' 
+#' @examples 
+#' c1 = list(c("a"),c("b"))
+#' c2 = list(c("b"),c("c"))
+#' c3 = list(c("c"),c("a"))
+#' composition = list(c1,c2,c3)
+#' h = History(composition, gamma=0.0)
+#'
+#' trueskill_learning_curves = h$learning_curves()
+#' ts_a = trueskill_learning_curves[["a"]]
+#' ts_a[[1]]$N; ts_a[[2]]$N
+#' ts_a[[1]]$t; ts_a[[2]]$t
+#' h$convergence()
+#' trueskillThrougTime_learning_curves = h$learning_curves()
+#' ttt_a = trueskillThrougTime_learning_curves[["a"]]
+#' ttt_a[[1]]$N; ttt_a[[2]]$N
+#' ttt_a[[1]]$t; ttt_a[[2]]$t
+#' 
+#' # Synthetic example
+#' N = 1000
+#' skill <- function(experience, middle, maximum, slope){
+#' return(maximum/(1+exp(slope*(-experience+middle)))) }
+#' target = skill(seq(N), 500, 2, 0.0075)
+#' opponents = rnorm(N,target,0.5)
+#' composition = list(); results = list(); times = c(); priors = hash()
+#' for(i in seq(N)){composition[[i]] = list(c("a"), c(toString(i)))}
+#' for(i in
+#' seq(N)){results[[i]]=if(rnorm(1,target[i])>rnorm(1,opponents[i])){c(1,0)}else{c(0,1)}}
+#' for(i in seq(N)){times = c(times,i)}
+#' for(i in seq(N)){priors[[toString(i)]] = Player(Gaussian(opponents[i],0.2))}
+#' h = History(composition, results, times, priors, gamma=0.015)
+#' h$convergence(); lc_a = h$learning_curves()$a; mu = c()
+#' for(tp in lc_a){mu = c(mu,tp[[2]]@mu)}
+#'
+#' # ATP examples
+#' invisible(atp2019) # Open the dataset 
+#' get_composition = function(x){ # A function to read de dataset
+#'   res = list()
+#'   if (x["double"]=="t"){
+#'     res[[1]] = c(x["w1_name"],x["w2_name"])
+#'     res[[2]] = c(x["l1_name"],x["l2_name"])
+#'   }else{
+#'     res[[1]] = c(x["w1_name"])
+#'     res[[2]] = c(x["l1_name"])
+#'   }
+#'   return(res)
+#' }
+#' 
+#' composition = apply(atp2019, 1, get_composition )
+#' days = as.numeric(as.Date(atp2019[,"time_start"], format = "%Y-%m-%d"))
+#' h = History(composition = composition, times = days, sigma = 1.6, gamma = 0.036)
+#' h$convergence(epsilon=0.01, iterations=10)
+#' 
+#' 
+#' @export History
+#' @exportClass History
 History = setRefClass("History",
   fields = list(
     size = "numeric",
@@ -725,7 +850,8 @@ History = setRefClass("History",
     )
 )
 History$methods(
-  initialize = function(composition, results=list(), times=c(), priors=hash(), mu=MU, sigma=SIGMA, beta=BETA, gamma=GAMMA, p_draw=P_DRAW, epsilon=EPSILON, iterations=ITERATIONS){
+  initialize = function(composition, results=list(), times=c(), priors=hash(),  mu=MU, sigma=SIGMA, beta=BETA, gamma=GAMMA, p_draw=P_DRAW, epsilon=EPSILON,  iterations=ITERATIONS){
+    " "
     if ((length(results)>0) & (length(composition) != length(results))){ stop("(length(results)>0) & (length(composition) != length(results))")}
     if (length(times) > 0 & (length(composition) != length(times))){ stop("length(times) error")}
     
@@ -798,8 +924,8 @@ History$methods(
     } #end ELSE
     return(step)
   },
-  #' @export
   convergence = function(epsilon = NA, iterations = NA, verbose=TRUE){
+    " "
     if(is.na(epsilon)){epsilon = h_epsilon}
     if(is.na(iterations)){iterations = h_iterations}
     step = c(Inf, Inf); i = 1
@@ -813,6 +939,7 @@ History$methods(
     return(step)
   },
   learning_curves = function(){
+    " "
     res = hash()
     for (b in batches){
       for (a in names(b$skills)){
@@ -828,6 +955,7 @@ History$methods(
     return(res)
   },
   log_evidence = function(){
+    " "
     res = 0
     for(b in batches){
         for(e in b$events){

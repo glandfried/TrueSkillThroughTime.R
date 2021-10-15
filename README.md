@@ -69,7 +69,7 @@ Posteriors can be found by manually multiplying the likelihoods and priors, or w
 pos = posteriors(g)
 print(pos[[1]][[1]])
 > Gaussian(mu=2.361, sigma=5.516)
-print(lhs[[[1]][[1]] * a1@prior)
+print(lhs[[1]][[1]] * a1@prior)
 > Gaussian(mu=2.361, sigma=5.516)
 ```
 

@@ -2,9 +2,15 @@
 
 ## Install
 
+To install the package from github you need to use `devtools`
+
+    install.packages(devtools)
+
+Then just
+
 	devtools::install_github("glandfried/TrueSkillThroughTime.R")
 
-The you can use it
+Finally, you can use it
 
 	library(TrueSkillThroughTime)
 
@@ -24,7 +30,7 @@ None of the commonly used skill estimators, such as TrueSkill, Glicko and Item-R
 TrueSkill Through Time corrects those biases by modeling the entire history of activities using a single Bayesian network.
 The use of an efficient algorithm, that requires only a few linear iterations over the data, allows scaling to millions of observations in few seconds.
 
-### Parameters
+## Ilustrations
 
 In the following code we define the variables that we will use later, assigning the default values of the packages.
 
@@ -49,6 +55,7 @@ team_b = c(a3, a4)
 teams = list(team_a, team_b)
 g = Game(teams)
 ```
+
 where the result of the game is implicitly defined by the order of the teams in the list: the teams appearing first in the list (lower index) beat those appearing later (higher index).
 
 During the initialization, the class `Game` computes the prior prediction of the observed result and the approximate likelihood of each player.
@@ -122,11 +129,11 @@ TrueSkill Through Time solves this problem by allowing the information to propag
 
 ```
 h$convergence()
-lc = h.learning_curves()
+lc = h$learning_curves()
 lc_print(lc[["a"]])
-> [(1, Gaussian(mu=0.0, sigma=2.395)), (3, Gaussian(mu=-0.0, sigma=2.395))]
+> [(1, Gaussian(mu=0, sigma=2.395)), (3, Gaussian(mu=0, sigma=2.395))]
 lc_print(lc[["b"]])
-> [(1, Gaussian(mu=-0.0, sigma=2.395)), (3, Gaussian(mu=0.0, sigma=2.395))]
+> [(1, Gaussian(mu=0, sigma=2.395)), (3, Gaussian(mu=0, sigma=2.395))]
 ```
 
 TrueSkill Through Time not only returns correct estimates (same for all players), they also have less uncertainty.

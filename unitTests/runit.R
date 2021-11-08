@@ -131,20 +131,15 @@ test_game_evidence_1vs1 = function(){
 test_game_evidence_1vs1vs1 = function(){
     teams = list(c(Player(Gaussian(25.,1e-7),25.0/6,25.0/300)), c(Player(Gaussian(25.,1e-7),25.0/6,25.0/300)), c(Player(Gaussian(25.,1e-7),25.0/6,25.0/300)))
     
-    g_abc = Game(teams, c(3,2,1), 0.)
-    g_acb = Game(teams, c(3,1,2), 0.)
-    g_bac = Game(teams, c(2,3,1), 0.)
-    g_bca = Game(teams, c(1,3,2), 0.)
-    g_cab = Game(teams, c(2,1,3), 0.)
-    g_cba = Game(teams, c(1,2,3), 0.)
     proba = 0
-    proba = proba + g_abc@evidence
-    proba = proba + g_acb@evidence
-    proba = proba + g_bac@evidence
-    proba = proba + g_bca@evidence
-    proba = proba + g_cab@evidence
-    proba = proba + g_cba@evidence
-    checkEquals(proba,1.5)
+    proba = proba + Game(teams, c(3,2,1), 0.)@evidence
+    proba = proba + Game(teams, c(3,1,2), 0.)@evidence
+    proba = proba + Game(teams, c(2,3,1), 0.)@evidence
+    proba = proba + Game(teams, c(1,3,2), 0.)@evidence
+    proba = proba + Game(teams, c(2,1,3), 0.)@evidence
+    proba = proba + Game(teams, c(1,2,3), 0.)@evidence
+    
+    checkTrue(abs(proba-0.9952751)<1e-6)
 }
 test_forget = function(){
     gamma = 0.15*25.0/3

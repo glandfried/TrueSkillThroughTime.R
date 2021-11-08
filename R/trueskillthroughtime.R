@@ -368,6 +368,11 @@ game <- setClass("Game",
 #     for (t in seq(length(object@teams))){ res[t] =length(team[t]) }
 #     return(res)
 #   })
+partial_evidence <- function(d, margin, tie, e){
+    mu = d[[e]]@prior@mu; sigma = d[[e]]@prior@sigma
+    return( if (tie[e]) (cdf(margin[e],mu,sigma)-cdf(-margin[e],mu,sigma)) else 1-cdf(margin[e],mu,sigma) )
+}
+
 graphical_model <- function(teams, result, p_draw){
     r = if (length(result)>0) result else seq(length(teams)-1,0)
     o = sortperm(r, decreasing = T)
@@ -393,10 +398,6 @@ graphical_model <- function(teams, result, p_draw){
       }
     }
     evidence = 1
-    for (e in seq(length(d))){
-        mu = d[[e]]@prior@mu; sigma = d[[e]]@prior@sigma
-        evidence = evidence * (if (tie[e]) (cdf(margin[e],mu,sigma)-cdf(-margin[e],mu,sigma)) else 1-cdf(margin[e],mu,sigma))
-    }
     return(list("o"=o, "t"=t, "d"=d, "tie"=tie, "margin"=margin, "evidence" = evidence))
 }
 #graphical_model = cmpfun(graphical_model )
@@ -427,10 +428,12 @@ likelihood_analitico <- function(teams,result,p_draw,gr){
 #likelihood_analitico = cmpfun(likelihood_analitico )
 likelihood_teams <- function(teams,result,p_draw,gr){
     o= gr$o; d = gr$d; t = gr$t; margin = gr$margin; tie = gr$tie 
+    evidence = 1
     step = c(Inf,Inf); i = 0
     while (gr_tuple(step,1e-3) & i < 10){
       for (e in seq(length(d)-1)){
         d[[e]]@prior = posterior_win(t[[e]]) - posterior_lose(t[[e+1]])
+        if(i == 0){evidence = evidence * partial_evidence(d, margin, tie, e)}
         d[[e]]@likelihood = approx(d[[e]]@prior,margin[[e]],tie[[e]])/d[[e]]@prior
         likelihood_lose = posterior_win(t[[e]]) - d[[e]]@likelihood
         step = max_tuple(step,delta(t[[e+1]]@likelihood_lose,likelihood_lose))
@@ -438,6 +441,7 @@ likelihood_teams <- function(teams,result,p_draw,gr){
       }
       for (e in seq(length(d),2,-1)){
         d[[e]]@prior = posterior_win(t[[e]]) - posterior_lose(t[[e+1]])
+        if((i == 0) & (e == length(d))){evidence = evidence * partial_evidence(d, margin, tie, e)}
         d[[e]]@likelihood = approx(d[[e]]@prior,margin[[e]],tie[[e]])/d[[e]]@prior
         likelihood_win = posterior_lose(t[[e+1]]) + d[[e]]@likelihood
         step = max_tuple(step,delta(t[[e]]@likelihood_win,likelihood_win))
@@ -446,6 +450,7 @@ likelihood_teams <- function(teams,result,p_draw,gr){
       i = i + 1
     }
     if (length(d)==1){
+      evidence = partial_evidence(gr$d, gr$margin, gr$tie, 1)
       d[[1]]@prior = posterior_win(t[[1]]) - posterior_lose(t[[2]])
       d[[1]]@likelihood = approx(d[[1]]@prior,margin[[1]],tie[[1]])/d[[1]]@prior
     }
@@ -453,14 +458,15 @@ likelihood_teams <- function(teams,result,p_draw,gr){
     t[[length(t)]]@likelihood_lose = posterior_win(t[[length(t)-1]]) - d[[length(d)]]@likelihood
     res = vector('list', length(t))
     for (e in seq(length(t))){ res[[e]] = likelihood(t[[o[e]]])}
-    return(res)
+    return(list("messages"=res, "evidence"= evidence))
 }
 #likelihood_teams = cmpfun(likelihood_teams )
 compute_likelihoods <-  function(teams,result,p_draw){
     gr = graphical_model(teams,result,p_draw)
-    if (length(teams)>2){
+    if (length(teams)>2){111
       lhoods = vector('list', length(teams))
-      m_t_ft = likelihood_teams(teams,result,p_draw,gr)
+      lht = likelihood_teams(teams,result,p_draw,gr)
+      m_t_ft = lht$messages
       for (e in seq(length(teams))){#e=2
         lhoods[[e]]  = vector('list', length(teams[[e]]))
         for (i in seq(length(teams[[e]]))){#i=1
@@ -470,9 +476,10 @@ compute_likelihoods <-  function(teams,result,p_draw){
           lhoods[[e]][[i]] = m_t_ft[[e]] - ex
         }
       }
-      return(list("likelihoods"=lhoods, "evidence"=gr$evidence))
+      return(list("likelihoods"=lhoods, "evidence"=lht$evidence))
     }else{
-      return(list("likelihoods"=likelihood_analitico(teams,result,p_draw,gr), "evidence"=gr$evidence))
+      evidence = partial_evidence(gr$d, gr$margin, gr$tie, 1)
+      return(list("likelihoods"=likelihood_analitico(teams,result,p_draw,gr), "evidence"=evidence))
     }
 }
 #compute_likelihoods = cmpfun(compute_likelihoods)

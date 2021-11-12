@@ -806,6 +806,7 @@ Batch$methods(
 #' ttt_a[[1]]$t; ttt_a[[2]]$t
 #' 
 #' # Synthetic example
+#' library(hash)
 #' N = 1000
 #' skill <- function(experience, middle, maximum, slope){
 #' return(maximum/(1+exp(slope*(-experience+middle)))) }

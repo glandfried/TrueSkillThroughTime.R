@@ -33,6 +33,6 @@ invisible(atp2019) # activate the database
 atp2019
 }
 \description{
-A dataset of the containing 14701 games played by 1306 unique players in 2019.
+A dataset of the ATP 2019, containing 14701 games played by 1306 unique players.
 }
 \keyword{datasets}

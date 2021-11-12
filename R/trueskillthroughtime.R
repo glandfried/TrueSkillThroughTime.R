@@ -1,4 +1,6 @@
 library(hash)
+library(methods)
+library(stats)
 
 BETA = 1.0
 MU = 0.0
@@ -131,6 +133,7 @@ setMethod("Tau", "Gaussian", function(N){
 forget <- function(N,gamma,t) 0
 setGeneric("forget")
 #' @rdname Gaussian
+#'
 #' @export
 setMethod("forget", c("Gaussian","numeric","numeric"), function(N,gamma,t){
     N@sigma = sqrt(N@sigma^2 + t*gamma^2)
@@ -332,7 +335,7 @@ Diff_messages <- setClass("diff_messages",
 #' g = Game(teams) 
 #' post = posteriors(g)
 #' lhs = g@likelihoods
-#' pos[[1]][[1]] == lhs[[1]][[1]]*a1@prior 
+#' post[[1]][[1]] == lhs[[1]][[1]]*a1@prior 
 #' ev = g@evidence
 #' ev == 0.5
 #'
@@ -733,11 +736,11 @@ Batch$methods(
 #' vectors of names representing the composition of each team in that game.
 #' @param results A list of numeric vectors, representing the outcome of each 
 #' game. It must have the same 
-#' length as the \code{composition} list or be an empty list. The default value is #' an empty list.
+#' length as the \code{composition} list or be an empty list. The default value is an empty list.
 #' When the list is empty, the outcomes of the games are inferred by the order of
 #' the teams in the \code{composition} list: the teams appearing firstly in the list 
 #' defeat those appearing later (no ties).
-#' When the list is not empty, each vector of the list must represents the score of #' each team in the game. The team with the highest score is 
+#' When the list is not empty, each vector of the list must represents the score of each team in the game. The team with the highest score is 
 #' the winner, and the teams with the same score are tied.
 #' @param times A numeric vector, the timestamp of each game. It must have the 
 #' same length as the \code{composition} list or be an empty list. The default value 

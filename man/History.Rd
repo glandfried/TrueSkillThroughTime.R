@@ -11,11 +11,11 @@ vectors of names representing the composition of each team in that game.}
 
 \item{results}{A list of numeric vectors, representing the outcome of each 
 game. It must have the same 
-length as the \code{composition} list or be an empty list. The default value is #' an empty list.
+length as the \code{composition} list or be an empty list. The default value is an empty list.
 When the list is empty, the outcomes of the games are inferred by the order of
 the teams in the \code{composition} list: the teams appearing firstly in the list 
 defeat those appearing later (no ties).
-When the list is not empty, each vector of the list must represents the score of #' each team in the game. The team with the highest score is 
+When the list is not empty, each vector of the list must represents the score of each team in the game. The team with the highest score is 
 the winner, and the teams with the same score are tied.}
 
 \item{times}{A numeric vector, the timestamp of each game. It must have the 

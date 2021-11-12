@@ -40,7 +40,7 @@ Gaussian(mu = 0, sigma = 1)
 
 \item{N}{A Gaussian object}
 
-\item{gamma}{The dynamic factor, the uncertainty added}
+\item{gamma}{The dynamic factor, the dynamic uncertainty}
 }
 \value{
 Gaussian object

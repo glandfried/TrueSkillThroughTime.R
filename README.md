@@ -1,5 +1,7 @@
 # TrueSkillThroughTime.R
 
+**The state-of-the-art skill model**: _Individual learning curves with reliable initial estimates and guaranteed comparability between distant estimates._
+
 ## Install
 
 To install the package from github you need to use `devtools`
@@ -14,21 +16,16 @@ Finally, you can use it
 
 	library(TrueSkillThroughTime)
 
-## Manual
+## Summary
 
-Here is the last pdf version of the manual:  [TrueSkillThroughTime.R](https://github.com/glandfried/TrueSkillThroughTime.R/releases/download/manual/TrueSkillThroughTime.R.pdf)
-
-## Article 
+Most estimators implemented by the video game industry cannot obtain reliable initial estimates nor guarantee comparability between distant estimates. TrueSkill Through Time solves all these problems by modeling the entire history of activities using a single Bayesian network allowing the information to propagate correctly throughout the system. This algorithm requires only a few iterations to converge, allowing millions of observations to be analyzed using any low-end computer.
 
 A full technical documentation is discribed at:
 
 0.  English. [Last version](https://github.com/glandfried/TrueSkillThroughTime/releases/download/doc/landfried-learning.pdf)
 0.  Español. [Última versión](https://github.com/glandfried/TrueSkillThroughTime/releases/download/doc/landfried-aprendizaje.pdf)
 
-None of the commonly used skill estimators, such as TrueSkill, Glicko and Item-Response Theory, correctly models the temporal aspect, which prevents having both good initial estimates and comparability between estimates separated in time and space.
-
-TrueSkill Through Time corrects those biases by modeling the entire history of activities using a single Bayesian network.
-The use of an efficient algorithm, that requires only a few linear iterations over the data, allows scaling to millions of observations in few seconds.
+Here is the last pdf version of the manual:  [TrueSkillThroughTime.R](https://github.com/glandfried/TrueSkillThroughTime.R/releases/download/manual/TrueSkillThroughTime.R.pdf)
 
 ## Ilustrations
 
@@ -58,7 +55,7 @@ g = Game(teams)
 
 where the result of the game is implicitly defined by the order of the teams in the list: the teams appearing first in the list (lower index) beat those appearing later (higher index).
 
-During the initialization, the class `Game` computes the prior prediction of the observed result and the approximate likelihood of each player.
+During the initialization, the `Game` class computes the prior prediction of the observed result and the approximate likelihood of each player.
 
 ```
 lhs = g@likelihoods
@@ -82,7 +79,7 @@ print(lhs[[1]][[1]] * a1@prior)
 
 Due to the winning result, the estimate of the first player of the first now has a larger mean and a smaller uncertainty.
 
-We now analyze a more complex.
+We now analyze a more complex event.
 The players are organized in three teams of different size: two teams with only one player, and the other with two players.
 The result has a single winning team and a tie between the other two losing teams.
 
@@ -110,7 +107,7 @@ composition = list(c1,c2,c3)
 h = History(composition, gamma=0.0)
 ```
 
-where the variables `c1`, `c2`, and `c3` model the composition of each game using the names of the agents (i.e. their identifiers), the variable `composition` is a list containing the three events,  and the zero value of the parameter `gamma` specifies that skills does not change over time.
+where the variables `c1`, `c2`, and `c3` model the composition of each game using the names of the agents (i.e. their identifiers), the variable `composition` is a list containing the three events, and the value of the parameter `gamma = 0.0` specifies that skills does not change over time.
 
 After initialization, the class `History` immediately instantiates a new player for each name and activates the computation of the TrueSkill estimates, using the posteriors of each event as a prior for the next one.
 
@@ -124,8 +121,8 @@ lc_print(lc[["b"]])
 
 The learning curves of players `"a"` and `"b"` contain one tuple per game played (not including the initial prior): each tuple has the time of the estimate as the first component, and the estimate itself as the second one.
 
-Although in this example no player is stronger than the others, the TrueSkill estimates present strong variations between players.
-TrueSkill Through Time solves this problem by allowing the information to propagate throughout the system by calling the method `convergence()`.
+Although in this example no player is stronger than the others, the TrueSkill's estimates present strong variations between players.
+TrueSkill Through Time solves this problem, allowing the information to propagate throughout the system, by calling the method `convergence()`.
 
 ```
 h$convergence()
@@ -140,7 +137,7 @@ TrueSkill Through Time not only returns correct estimates (same for all players)
 
 ### Skill evolution
 
-This example will exhibit that TrueSkill Through Time can correctly follows the skill evolution of a new player taht joins a large community of already known players.
+This example will exhibit that TrueSkill Through Time can correctly follows the skill evolution of a new player that joins a large community of already known players.
 In the following code, we generate the target player's learning curve and 1000 random opponents.
 
 ```
@@ -170,16 +167,20 @@ The Figure shows the evolution of the true (solid line) and estimated (dotted li
 
 The estimated learning curves remain close to the actual skill during the whole evolution.
 
-### ATP History
+### Association of Tennis Professionals 2019
 
-In this last example, we analyze the complete history of the Association of Tennis Professionals (ATP) registered matches.
-
-The database has 447000 games starting at year 1915 until 2020 with more than 19000 participating players and is publicly available.
-The file includes both single and double matches: if the column `double` has the letter `t`, the game is a double match.
-The file also contains players' identifiers and names: for example column `w2_id` is the identifier of the second player of the winning team and `l1_name` is the name of the first player of the losing team.
+In this last example, we analyze a dataset of the ATP 2019, containing 14701 games played by 1306 unique players.
 
 ```
-data = read.csv("input/history.csv", header=T)
+invisible(atp2019) # activate the database
+```
+
+Each game has an identifier (i.e. `match_id`) and its tournament's round number (i.e. `round_number`), where 0 represents the final game, 1 the semi-final, and so on.
+The file also contains players' identifiers and names.
+For example, column `w2_id` is the second player's identifier of the winning team, and `l1_name` is the first player's name of the losing team. 
+Finally, we have the tournament's name (`tour_name`), its identifier (`tour_id`), the tournament's starting date (`time_start`), and the type of surface (`ground`).
+
+```
 get_composition = function(x){
     res = list()
     if (x["double"]=="t"){
@@ -191,45 +192,69 @@ get_composition = function(x){
     }
     return(res)
 }
-composition =  apply(data, 1, get_composition ) 
-days = as.numeric(as.Date(data[,"time_start"], format = "%Y-%m-%d"))
+composition =  apply(atp2019, 1, get_composition ) 
+days = as.numeric(as.Date(atp2019[,"time_start"], format = "%Y-%m-%d"))
 
 h = History(composition = composition, times = days, sigma = 1.6, gamma = 0.036)
 h$convergence(epsilon=0.01, iterations=10)
 ```
-In this code we open the file `atp.csv`, create the variables `dates` and `matches`, and instantiate the class `History`.
-The following figure presents the learning curves of some famous players in ATP history.
+
+Here we create the variables `days` and `composition`, and instantiate the class `History`.
+We define the event times as the days elapsed from a reference date to the tournament start date, assuming that the skill is the same within each tournament.
+When generating the list `composition` we discriminate whether the games are doubles or singles using the column `double`. 
+The results are determined by the composition's order, placing the winning team first.
+When initializing the class `History` we set the values of `sigma` and `gamma` based on an optimization procedure previously performed.
+Finally, we use the `convergence()` method to obtain TrueSkill Through Time estimates explicitly selecting the convergence criterion: when the change between iterations is less than $0.01$ or when ten iterations are performed.
+
+The following figure presents the estimated learning curves of some famous players in ATP's history using the complete history of the Association of Tennis Professionals (ATP) registered matches ([history.csv.zip](https://github.com/glandfried/tennis_atp/releases/download/atp/history.csv.zip)).
+The learning curves share a similar pattern: they begin with rapid growth, reach an unstable plateau, and end with a slow decline (we hidden the last portion of the players who have long final stages for visualization purposes).
 
 ![atp](static/atp.png)
 
-Those who know the history of tennis will be able to recognize the periods of crisis, stability and success of the players.
+The top bar indicates which player was at the top of the ATP's ranking (the bar has no color when player number 1 is not included among the 10 players identified with colors).
+ATP's ranking points are updated every Monday according to the prestige of the tournament and the stage reached. 
+There is a relative coincidence between the skill estimates and who is at any given moment at the top of the ATP rankings.
+The following Table shows the historical ranking of players in the top position of the ATP's ranking according to the number of weeks occupying the first position.
 
-There is a relative coincidence between skill and who is at any given moment at the top of the ATP rankings, it is possible to observe the effects of injuries, and even the effect of emotional slumps such as those that Aggasi and Djockovic had.
+|No| Name | Weeks at top|
+|:-:|:-:|:-:|
+|    1       |   Novak Djokovic      |   320|
+|    2       |   Roger Federer       |	310|
+|    3       |	Pete Sampras        |   286|
+|    4       |   Ivan Lendl          |   270|
+|    5       |   Jimmy Connors       |   268|
+|    6       |   Rafael Nadal        |   209|
+|    7       |   John McEnroe        |   170|
+|    8       |   Bj\"orn Borg        |   109|
+|    9       |   Andre Agassi        |   101|
+|    10      |   Lleyton Hewitt      |   80 |
+|    11 	    |   Stefan Edberg       | 	72|
+|    12 	    |   Jim Courier         | 	58|
+|    13 	    |   Gustavo Kuerten     | 	43|
+|    14 	    |   Andy Murray         | 	41|
+|    15 	    |   Ilie N\u{a}stase    | 	40|
+|    16 	    |   Mats Wilander       | 	20 |
 
-It is interesting to see that the skill of tennis players did not increase so much over the years: on the contrary the players of the 1980s were more skilled than those of the 1990s, and reached a skill similar to what Federer, Nadal and Djokovic had in 2020.
+However, TrueSkill Through Time allows comparing the relative ability of players over time: the 10th player in the historical ATP's ranking, Hewitt, is a product of the window of opportunity that was opened in the year 2000; and the 4th most skilled player, Murray, is ranked 14th just above Nastase.
+Individual learning curves enable recognizing special periods of crisis and prolonged stability of the professional players, and even the effects of emotional slumps such as those suffered by Aggasi and Djokovic.
+It is worthwhile to note that the skill of tennis players did not increase abruptly over the years: contrary to what might have been expected, the players of the 1980s were more skilled than those of the 1990s, and reached a skill similar to what Federer, Nadal and Djokovic had in 2020, even though the latter reached higher values for a longer time.
 
-There are also some differences between players' skills and the ATP ranking, especially with respect to the historical ranking (based on the total number of weeks at the top of the ranking): the 10th-ranked player, Hewitt, actually has relatively low skill; and the fourth most skilled player, Murray, is ranked 14th, just one place above Nastase.
+### Multidimensional skills
 
-TrueSkill Through Time, unlike ATP ranking and estimators based on the filtering approach (such as TrueSkill, Glicko and IRT) allows comparing the relative ability of players over time.
-
-### Multi-dimensional skills
-
-In the ATP example we summarize the players' skills in a single dimension.
-We know, however, that the ability of tennis players can vary significantly depending on the type of ground.
-
-TrueSkill Through Time allows estimating this type of multi-dimensional skills.
-One option is to keep one skill variable per player, that we include in all games, and one skill variable per ground, that we add as their teammate depending on the type of game.
-
+In the previous example, we summarize the players' skills in a single dimension.
+TrueSkill Through Time allows estimating multi-dimensional skills. 
+It is known that the ability of certain tennis players varies significantly depending on the surface.
+To quantify this phenomenon, we propose modeling each player as a team composed of a generic player, who is included in all the games, and another player representing their ability on a particular surface.
+For example, Nadal will be represented as a two-player team: `Nadal_generic` and `Nadal_clay` when playing on this kind of surface, and `Nadal_generic` and `Nadal_grass` when participating in the Wimbledon tournament.
 In the following figures we show the skill difference that Nadal and Djokovic have in each of the three types of ground.
 
 ![n](static/atp_ground0.png)
+
+Nadal has a notorious skill difference when playing on different surfaces. 
+The Nadal's skill difference between clay and grass grounds is greater than one $\beta$, which means at least 76\% difference in probability of winning compared to itself.
+On the contrary, Djokovic has very similar skills in the three types.
+
 ![d](static/atp_ground2.png)
 
-We can see that Nadal has a big skill difference between grounds, unlike Djokovic who has very similar skills on all three types of ground.
-The Nadal's skill difference between clay and grass gorunds is greater than one ponit, which means at least 76% difference in probability of winning compared to itself.
-
-To assess whether the complexity added by modeling multidimensionality is appropriate in general terms, we can compare the joint priori prediction of the models, calling the method `log_evidence()` of the class `History`.
-
-
-
-
+In the case of Nadal (id `"n409"`), it seems important to model the skill's multi-dimensionality, while in Djokovic's case (id `"d643"`) it seems reasonable to summarize it in a single dimension.
+To assess whether the complexity added by modeling multi-dimensionality is appropriate in general terms, we can compare the joint prior prediction of the models, calling the method `log_evidence()` of the class `History`.

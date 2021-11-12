@@ -1,6 +1,6 @@
 #' Association of Tennis Professionals 2019 (\code{atp2019})
 #'
-#' A dataset of the containing 14701 games played by 1306 unique players in 2019.
+#' A dataset of the ATP 2019, containing 14701 games played by 1306 unique players.
 #'
 #' @usage
 #' invisible(atp2019) # activate the database

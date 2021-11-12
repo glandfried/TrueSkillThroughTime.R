@@ -1,5 +1,4 @@
 library(hash)
-library(compiler)
 
 BETA = 1.0
 MU = 0.0
@@ -78,7 +77,7 @@ sortperm = function(xs, decreasing = F){
 #' @param mu A number, the mean of the Gaussian distribution.
 #' @param sigma A number, the standar deviation of the Gaussian distribution.
 #' @param N A Gaussian object
-#' @param gamma The dynamic factor, the uncertainty added
+#' @param gamma The dynamic factor, the dynamic uncertainty
 #'
 #' @return Gaussian object
 #'
@@ -324,7 +323,7 @@ Diff_messages <- setClass("diff_messages",
 #' @return Game object
 #'
 #' @examples
-#' a1 = Player(Gaussian(mu=1, sigma=6), beta=1, gamma=0.03)
+#' a1 = Player(Gaussian(mu=0, sigma=6), beta=1, gamma=0.03)
 #' a2 = Player(); a3 = Player(); a4 = Player()
 #' team_a = c(a1, a2)
 #' team_b = c(a3, a4)

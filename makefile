@@ -13,3 +13,6 @@ atp2019:
 
 atpOld:
 	R -e "atpOld = read.csv('data/historyOld.csv'); usethis::use_data(atpOld, overwrite = T)"
+
+build:
+	cd ..; R CMD build TrueSkillThroughTime.R

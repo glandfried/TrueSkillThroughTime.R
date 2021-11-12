@@ -127,6 +127,8 @@ test_game_evidence_1vs1 = function(){
     checkEquals(g@evidence,0.25)
     g = Game(list(c(Player(Gaussian(25.0,1e-7),25.0/6,25.0/300)), c(Player(Gaussian(25.0,1e-7),25.0/6,25.0/300))), c(1,0), 0.25)
     checkEquals(g@evidence,0.375)
+    
+    
 }
 test_game_evidence_1vs1vs1 = function(){
     teams = list(c(Player(Gaussian(25.,1e-7),25.0/6,25.0/300)), c(Player(Gaussian(25.,1e-7),25.0/6,25.0/300)), c(Player(Gaussian(25.,1e-7),25.0/6,25.0/300)))

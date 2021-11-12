@@ -35,7 +35,7 @@ Game object
 Game class
 }
 \examples{
-a1 = Player(Gaussian(mu=1, sigma=6), beta=1, gamma=0.03)
+a1 = Player(Gaussian(mu=0, sigma=6), beta=1, gamma=0.03)
 a2 = Player(); a3 = Player(); a4 = Player()
 team_a = c(a1, a2)
 team_b = c(a3, a4)

@@ -2,24 +2,37 @@
 % Please edit documentation in R/trueskillthroughtime.R
 \name{Gaussian}
 \alias{Gaussian}
+\alias{Pi}
 \alias{Pi,Gaussian-method}
+\alias{Tau}
 \alias{Tau,Gaussian-method}
+\alias{forget}
 \alias{forget,Gaussian,numeric,numeric-method}
+\alias{isapprox}
 \alias{isapprox,Gaussian,Gaussian,numeric-method}
 \alias{+,Gaussian,Gaussian-method}
 \alias{-,Gaussian,Gaussian-method}
 \alias{*,Gaussian,Gaussian-method}
 \alias{/,Gaussian,Gaussian-method}
 \alias{==,Gaussian,Gaussian-method}
+\alias{performance,Player-method}
 \title{Gaussian}
 \usage{
 Gaussian(mu = 0, sigma = 1)
 
+Pi(N)
+
 \S4method{Pi}{Gaussian}(N)
+
+Tau(N)
 
 \S4method{Tau}{Gaussian}(N)
 
+forget(N, gamma, t)
+
 \S4method{forget}{Gaussian,numeric,numeric}(N, gamma, t)
+
+isapprox(N, M, tol = 1e-04)
 
 \S4method{isapprox}{Gaussian,Gaussian,numeric}(N, M, tol = 1e-04)
 
@@ -32,6 +45,8 @@ Gaussian(mu = 0, sigma = 1)
 \S4method{/}{Gaussian,Gaussian}(e1, e2)
 
 \S4method{==}{Gaussian,Gaussian}(e1, e2)
+
+\S4method{performance}{Player}(a)
 }
 \arguments{
 \item{mu}{A number, the mean of the Gaussian distribution.}
@@ -41,6 +56,18 @@ Gaussian(mu = 0, sigma = 1)
 \item{N}{A Gaussian object}
 
 \item{gamma}{The dynamic factor, the dynamic uncertainty}
+
+\item{t}{The elapsed time}
+
+\item{M}{A Gaussian object}
+
+\item{tol}{The tolerance threshold for comparitions}
+
+\item{e1}{A Gaussian object}
+
+\item{e2}{A Gaussian object}
+
+\item{a}{A Gaussian object}
 }
 \value{
 Gaussian object

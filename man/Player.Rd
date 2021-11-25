@@ -2,12 +2,12 @@
 % Please edit documentation in R/trueskillthroughtime.R
 \name{Player}
 \alias{Player}
-\alias{performance,Player-method}
+\alias{performance}
 \title{Player}
 \usage{
 Player(prior = Nms, beta = BETA, gamma = GAMMA)
 
-\S4method{performance}{Player}(a)
+performance(a)
 }
 \arguments{
 \item{prior}{A Gaussian object, the prior belief distribution of the skills. The 
@@ -20,6 +20,8 @@ to 76\% probability of winning.}
 
 \item{gamma}{A number, the amount of uncertainty (standar deviation) added to 
 the estimates at each time step. The default value is: \code{GAMMA = 0.03}.}
+
+\item{a}{A Player object}
 }
 \value{
 Player object
@@ -30,9 +32,9 @@ Player class
 \examples{
 a1 = Player(prior = Gaussian(0,6), beta = 1, gamma = 0.03); 
 a2 = Player()
-a1 == a2 
+a1@gamma == a2@gamma 
 N = performance(a1) 
-N@mu == p1@prior@mu
-N@sigma == sqrt(p@prior@sigma^2 + p@beta^2)
+N@mu == a1@prior@mu
+N@sigma == sqrt(a1@prior@sigma^2 + a1@beta^2)
 
 }

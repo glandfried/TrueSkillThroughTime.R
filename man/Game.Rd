@@ -2,10 +2,13 @@
 % Please edit documentation in R/trueskillthroughtime.R
 \name{Game}
 \alias{Game}
+\alias{posteriors}
 \alias{posteriors,Game-method}
 \title{Game}
 \usage{
 Game(teams, result = vector(), p_draw = P_DRAW)
+
+posteriors(g)
 
 \S4method{posteriors}{Game}(g)
 }
@@ -27,6 +30,8 @@ initialized with the observed frequency of draws. If in doubt, it is a candidate
 parameter to be optimized or integrated by the sum rule. It is used to compute 
 the prior probability of the observed result, so its value may affect an 
 eventual model selection task.}
+
+\item{g}{A game object}
 }
 \value{
 Game object

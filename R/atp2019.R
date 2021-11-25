@@ -2,9 +2,10 @@
 #'
 #' A dataset of the ATP 2019, containing 14701 games played by 1306 unique players.
 #'
+#' @param atp2019 A database with all the 2019 ATP matches 
+#'
 #' @usage
-#' invisible(atp2019) # activate the database
-#' atp2019
+#' atp2019 # The name of the database
 #'
 #' @format A data frame with 14701 rows and 16 variables:
 #' \describe{

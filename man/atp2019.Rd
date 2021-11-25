@@ -29,8 +29,10 @@ A data frame with 14701 rows and 16 variables:
 \url{https://github.com/glandfried/tennis_atp/releases/download/atp/history.csv.zip}
 }
 \usage{
-invisible(atp2019) # activate the database
-atp2019
+atp2019 # The name of the database
+}
+\arguments{
+\item{atp2019}{A database with all the 2019 ATP matches}
 }
 \description{
 A dataset of the ATP 2019, containing 14701 games played by 1306 unique players.

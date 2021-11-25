@@ -79,7 +79,13 @@ sortperm = function(xs, decreasing = F){
 #' @param mu A number, the mean of the Gaussian distribution.
 #' @param sigma A number, the standar deviation of the Gaussian distribution.
 #' @param N A Gaussian object
+#' @param M A Gaussian object
 #' @param gamma The dynamic factor, the dynamic uncertainty
+#' @param tol The tolerance threshold for comparitions
+#' @param e1 A Gaussian object
+#' @param e2 A Gaussian object
+#' @param a A Gaussian object
+#' @param t The elapsed time 
 #'
 #' @return Gaussian object
 #'
@@ -105,23 +111,27 @@ Gaussian <- function(mu=0, sigma=1){
       stop("Require: (sigma >= 0.0)")
     }
 }
-f_tau <- function(a){
-    if (a@sigma > 0.0){return(a@mu*a@sigma^-2)
+f_tau <- function(e1){
+    if (e1@sigma > 0.0){return(e1@mu*e1@sigma^-2)
     }else{return(Inf)}
 }
-f_pi <- function(a){
-    if (a@sigma > 0.0){return(a@sigma^-2)
+f_pi <- function(e1){
+    if (e1@sigma > 0.0){return(e1@sigma^-2)
     }else{return(Inf)}
 }
 gaussian <- setClass("Gaussian"
         , representation(mu = "numeric",sigma = "numeric"))
 setMethod("show","Gaussian", function(object) { cat(paste0("Gaussian(mu=", round(object@mu,3), ", sigma=", round(object@sigma,3),")\n"))})
+#' @rdname Gaussian
+#' @export
 Pi <- function(N) 0
 setGeneric("Pi")
 #' @rdname Gaussian
 #' @export
 setMethod("Pi", "Gaussian", function(N) if (N@sigma > 0.0){return(N@sigma^-2)
     }else{return(Inf)})
+#' @rdname Gaussian
+#' @export
 Tau <- function(N) 0
 setGeneric("Tau")
 #' @rdname Gaussian
@@ -130,10 +140,11 @@ setMethod("Tau", "Gaussian", function(N){
     if (N@sigma > 0.0){return(N@mu*N@sigma^-2)
     }else{return(Inf)}
   })
+#' @rdname Gaussian
+#' @export
 forget <- function(N,gamma,t) 0
 setGeneric("forget")
 #' @rdname Gaussian
-#'
 #' @export
 setMethod("forget", c("Gaussian","numeric","numeric"), function(N,gamma,t){
     N@sigma = sqrt(N@sigma^2 + t*gamma^2)
@@ -147,6 +158,8 @@ setMethod("exclude", c("Gaussian","Gaussian"),
     N@sigma = sqrt(N@sigma^2 - M@sigma^2)
     return(N)
   })
+#' @rdname Gaussian
+#' @export
 isapprox <- function(N, M, tol=1e-4) 0
 setGeneric("isapprox")
 #' @rdname Gaussian
@@ -239,17 +252,17 @@ list_diff = function(old, new){
 #' to 76\% probability of winning.
 #' @param gamma A number, the amount of uncertainty (standar deviation) added to 
 #' the estimates at each time step. The default value is: \code{GAMMA = 0.03}.
-#'
+#' @param a A Player object
 #'
 #' @return Player object
 #'
 #' @examples
 #' a1 = Player(prior = Gaussian(0,6), beta = 1, gamma = 0.03); 
 #' a2 = Player()
-#' a1 == a2 
+#' a1@gamma == a2@gamma 
 #' N = performance(a1) 
-#' N@mu == p1@prior@mu
-#' N@sigma == sqrt(p@prior@sigma^2 + p@beta^2)
+#' N@mu == a1@prior@mu
+#' N@sigma == sqrt(a1@prior@sigma^2 + a1@beta^2)
 #'
 #' @name Player
 #' @export
@@ -262,9 +275,11 @@ setMethod("show", "Player",
   function(object){
     cat(paste0("Player(Gaussian(mu=", round(object@prior@mu,3), ", sigma=", round(object@prior@sigma,3),"), beta=",round(object@beta,3), ", gamma=",round(object@gamma,3)),")\n")
   })
+#' @rdname Player
+#' @export
 performance <- function(a) 0
 setGeneric("performance")
-#' @rdname Player
+#' @rdname Gaussian
 #' @export
 setMethod("performance", "Player", 
   function(a){
@@ -322,6 +337,7 @@ Diff_messages <- setClass("diff_messages",
 #' parameter to be optimized or integrated by the sum rule. It is used to compute 
 #' the prior probability of the observed result, so its value may affect an 
 #' eventual model selection task.
+#' @param g A game object
 #'
 #' @return Game object
 #'
@@ -485,6 +501,8 @@ compute_likelihoods <-  function(teams,result,p_draw){
     }
 }
 #compute_likelihoods = cmpfun(compute_likelihoods)
+#' @rdname Game
+#' @export
 posteriors <- function(g) 0
 setGeneric("posteriors")
 #' @rdname Game
@@ -785,8 +803,6 @@ Batch$methods(
 #' @field p_draw A number, the probability of a draw in this particular \code{History} object
 #' @field h_epsilon A number, the convergence threshold in this particular \code{History} object
 #' @field h_iterations A number, the maximum number of iterations for convergence in this particular \code{History} object
-#'
-#' @name History
 #' 
 #' @examples 
 #' c1 = list(c("a"),c("b"))
@@ -824,9 +840,6 @@ Batch$methods(
 #' plot(target)
 #' lines(mu)
 #'
-#' # ATP examples
-#' invisible(atp2019) # Open the dataset 
-#' 
 #' @export History
 #' @exportClass History
 History = setRefClass("History",
@@ -961,6 +974,10 @@ History$methods(
   }
 )
 
+#' Print list of Gaussian using the python and julia syntax
+#' 
+#' @param lc.a List of Gaussians 
+#' 
 #' @export
 lc_print <- function(lc.a){
   res = "["

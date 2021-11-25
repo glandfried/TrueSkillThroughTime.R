@@ -807,10 +807,10 @@ Batch$methods(
 #' 
 #' # Synthetic example
 #' library(hash)
-#' N = 1000
+#' N = 100
 #' skill <- function(experience, middle, maximum, slope){
 #' return(maximum/(1+exp(slope*(-experience+middle)))) }
-#' target = skill(seq(N), 500, 2, 0.0075)
+#' target = skill(seq(N), N/2, 2, 0.075)
 #' opponents = rnorm(N,target,0.5)
 #' composition = list(); results = list(); times = c(); priors = hash()
 #' for(i in seq(N)){composition[[i]] = list(c("a"), c(toString(i)))}
@@ -818,29 +818,14 @@ Batch$methods(
 #' seq(N)){results[[i]]=if(rnorm(1,target[i])>rnorm(1,opponents[i])){c(1,0)}else{c(0,1)}}
 #' for(i in seq(N)){times = c(times,i)}
 #' for(i in seq(N)){priors[[toString(i)]] = Player(Gaussian(opponents[i],0.2))}
-#' h = History(composition, results, times, priors, gamma=0.015)
+#' h = History(composition, results, times, priors, gamma=0.1)
 #' h$convergence(); lc_a = h$learning_curves()$a; mu = c()
 #' for(tp in lc_a){mu = c(mu,tp[[2]]@mu)}
+#' plot(target)
+#' lines(mu)
 #'
 #' # ATP examples
 #' invisible(atp2019) # Open the dataset 
-#' get_composition = function(x){ # A function to read de dataset
-#'   res = list()
-#'   if (x["double"]=="t"){
-#'     res[[1]] = c(x["w1_name"],x["w2_name"])
-#'     res[[2]] = c(x["l1_name"],x["l2_name"])
-#'   }else{
-#'     res[[1]] = c(x["w1_name"])
-#'     res[[2]] = c(x["l1_name"])
-#'   }
-#'   return(res)
-#' }
-#' 
-#' composition = apply(atp2019, 1, get_composition )
-#' days = as.numeric(as.Date(atp2019[,"time_start"], format = "%Y-%m-%d"))
-#' h = History(composition = composition, times = days, sigma = 1.6, gamma = 0.036)
-#' h$convergence(epsilon=0.01, iterations=10)
-#' 
 #' 
 #' @export History
 #' @exportClass History

@@ -44,7 +44,7 @@ teams = list(team_a, team_b)
 g = Game(teams) 
 post = posteriors(g)
 lhs = g@likelihoods
-pos[[1]][[1]] == lhs[[1]][[1]]*a1@prior 
+post[[1]][[1]] == lhs[[1]][[1]]*a1@prior 
 ev = g@evidence
 ev == 0.5
 

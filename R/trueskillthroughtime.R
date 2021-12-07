@@ -103,6 +103,8 @@ sortperm = function(xs, decreasing = F){
 #' isapprox(Nnew, Gaussian(N01@mu,sqrt(N01@sigma^2+100*(0.01^2))), tol=1e-6)
 #'
 #' @name Gaussian
+#' @import methods
+#' @import stats
 #' @export
 Gaussian <- function(mu=0, sigma=1){
     if(sigma>=0.0){
@@ -546,7 +548,6 @@ Skill$methods(
     return(likelihood*backward)
   }
 )
-
 Agent <- setRefClass("Agent",
   fields = list(
     player = "Player",
@@ -821,7 +822,8 @@ Batch$methods(
 #' ttt_a[[1]]$N; ttt_a[[2]]$N
 #' ttt_a[[1]]$t; ttt_a[[2]]$t
 #' 
-#' # Synthetic example
+#' \dontrun{
+#' Synthetic example
 #' library(hash)
 #' N = 100
 #' skill <- function(experience, middle, maximum, slope){
@@ -839,7 +841,7 @@ Batch$methods(
 #' for(tp in lc_a){mu = c(mu,tp[[2]]@mu)}
 #' plot(target)
 #' lines(mu)
-#'
+#' }
 #' @export History
 #' @exportClass History
 History = setRefClass("History",

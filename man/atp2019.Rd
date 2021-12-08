@@ -29,7 +29,7 @@ A data frame with 14701 rows and 16 variables:
 \url{https://github.com/glandfried/tennis_atp/releases/download/atp/history.csv.zip}
 }
 \usage{
-atp2019 # The name of the database
+atp2019
 }
 \arguments{
 \item{atp2019}{A database with all the 2019 ATP matches}

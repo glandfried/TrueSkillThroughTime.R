@@ -4,9 +4,6 @@
 #'
 #' @param atp2019 A database with all the 2019 ATP matches 
 #'
-#' @usage
-#' atp2019 # The name of the database
-#'
 #' @format A data frame with 14701 rows and 16 variables:
 #' \describe{
 #'   \item{match_id}{String, game's identifier. Not null.}

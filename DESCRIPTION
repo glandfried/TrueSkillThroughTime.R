@@ -3,7 +3,7 @@ Type: Package
 Title: Skill Estimation Based on a Single Bayesian Network
 Version: 0.1.0
 Date: 2021-11-12
-Authors@R: person("Gustavo", "Landfried", email = "gustavolandfried@gmail.com", role = c("aut", "cre"))
+Authors@R: person(given="Gustavo", family="Landfried", email = "gustavolandfried@gmail.com", role = c("aut", "cre"))
 Maintainer: Gustavo Landfried <gustavolandfried@gmail.com>
 Description:
     Most estimators implemented by the video game industry cannot obtain reliable initial estimates nor guarantee comparability between distant estimates. TrueSkill Through Time solves all these problems by modeling the entire history of activities using a single Bayesian network allowing the information to propagate correctly throughout the system. This algorithm requires only a few iterations to converge, allowing millions of observations to be analyzed using any low-end computer.

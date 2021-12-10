@@ -59,6 +59,9 @@ eventual model selection task.}
 
 \item{iterations}{A number, the maximum number of iterations for convergence. Used to stop the convergence procedure. The default value is \code{ITERATIONS = 30}.}
 }
+\value{
+History object
+}
 \description{
 History class
 }
@@ -130,7 +133,7 @@ ttt_a[[1]]$N; ttt_a[[2]]$N
 ttt_a[[1]]$t; ttt_a[[2]]$t
 
 \dontrun{
-Synthetic example
+# Synthetic example
 library(hash)
 N = 100
 skill <- function(experience, middle, maximum, slope){

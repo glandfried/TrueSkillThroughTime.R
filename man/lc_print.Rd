@@ -9,6 +9,9 @@ lc_print(lc.a)
 \arguments{
 \item{lc.a}{List of Gaussians}
 }
+\value{
+No return value, print lists of Gaussian using the python and julia syntax
+}
 \description{
 Print list of Gaussian using the python and julia syntax
 }

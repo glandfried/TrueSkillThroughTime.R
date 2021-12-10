@@ -793,6 +793,8 @@ Batch$methods(
 #' @param epsilon A number, the convergence threshold. Used to stop the convergence procedure. The default value is \code{EPSILON = 1e-6}.
 #' @param iterations A number, the maximum number of iterations for convergence. Used to stop the convergence procedure. The default value is \code{ITERATIONS = 30}.
 #'
+#' @return History object
+#' 
 #' @field size A number, the amount of games.
 #' @field batches A vector of \code{Batch} objects. Where the games that occur at the same timestamp live.
 #' @field agents A hash, a dictionary indexed by the players' name (id).
@@ -823,7 +825,7 @@ Batch$methods(
 #' ttt_a[[1]]$t; ttt_a[[2]]$t
 #' 
 #' \dontrun{
-#' Synthetic example
+#' # Synthetic example
 #' library(hash)
 #' N = 100
 #' skill <- function(experience, middle, maximum, slope){
@@ -980,6 +982,8 @@ History$methods(
 #' 
 #' @param lc.a List of Gaussians 
 #' 
+#' @return No return value, print lists of Gaussian using the python and julia syntax
+#' 
 #' @export
 lc_print <- function(lc.a){
   res = "["
@@ -993,14 +997,3 @@ lc_print <- function(lc.a){
   res = paste0(res,"]\n")
   cat(res)
 }
-
-
-# 
-# teams = list(ta = c(Rating()), tb = c(Rating()))
-# result = c(0,1)
-# g = Game(teams, result)
-# g$size()
-# microbenchmark(Rating(0.001,1.0), times=5, unit="s")
-# microbenchmark(N1/N2, times=5, unit="s")
-# 
-# 

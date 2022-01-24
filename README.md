@@ -4,15 +4,11 @@
 
 ## Install
 
-To install the package from github you need to use `devtools`
+To install the package from CRAN
 
-    install.packages(devtools)
+    install.packages("TrueSkillThroughTime")
 
 Then just
-
-	devtools::install_github("glandfried/TrueSkillThroughTime.R")
-
-Finally, you can use it
 
 	library(TrueSkillThroughTime)
 

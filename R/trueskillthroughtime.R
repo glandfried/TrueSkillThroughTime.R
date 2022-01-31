@@ -224,7 +224,7 @@ setMethod("/", c("Gaussian", "Gaussian"),
 #' @export
 setMethod("==", c("Gaussian", "Gaussian"),
   function(e1, e2) {
-    mu = e1@mu - e2@mu < 1e-3
+    mu = abs(e1@mu - e2@mu) < 1e-3
     sigma = if (e2@sigma == Inf | e1@sigma == Inf) (e1@sigma==e2@sigma) else  (e1@sigma - e2@sigma < 1e-3)
     return(mu & sigma)
 })

@@ -1,7 +1,6 @@
-source("../TrueSkill.R")
+library(TrueSkillThroughTime)
 library(microbenchmark)
-library(profvis)
-
+library(hash)
 
 print("Code 1")
 mu = 0.0; sigma = 6.0; beta = 1.0; gamma = 0.03; p_draw = 0.0
@@ -36,9 +35,6 @@ teams = list(ta, tb, tc)
 result = c(1, 0, 0)
 g = Game(teams, result, p_draw=0.25)
 microbenchmark(posteriors(Game(teams, result, p_draw=0.25)), times=10, unit="s")
-
-#profvis(Game(teams))
-#profvis(microbenchmark(posteriors(Game(teams, result, p_draw=0.25)), times=20, unit="s"))
 
 print("Code 7")
 c1 = list(c("a"),c("b"))

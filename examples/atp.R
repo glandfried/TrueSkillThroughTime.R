@@ -1,4 +1,4 @@
-source("../TrueSkill.R")
+library(TrueSkillThroughTime)
 
 data = read.csv("input/history.csv", header=T)
 

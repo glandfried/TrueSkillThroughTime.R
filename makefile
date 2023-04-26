@@ -18,5 +18,5 @@ atpOld:
 build:
 	R -e "roxygen2::roxygenise('.', roclets=c('rd', 'collate', 'namespace')); devtools::build_manual(path='.')"
 	cd ..; R CMD build TrueSkillThroughTime.R
-	cd ..; R CMD check --as-cran TrueSkillThroughTime_0.1.0.tar.gz
+	cd ..; R CMD check --as-cran TrueSkillThroughTime_0.1.1.tar.gz
 	

@@ -1,0 +1,13 @@
+unitTests/
+static/
+runtest.R
+.git
+.keep
+examples/
+info
+makefile
+TrueSkillThroughTime_0.1.0.pdf
+TrueSkillThroughTime_0.1.1.pdf
+README.md
+atp2019.rda
+LICENSE.md

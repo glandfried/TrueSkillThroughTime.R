@@ -10,6 +10,7 @@
 ## R
 !DESCRIPTION
 !NAMESPACE
+.Rbuildignore
 
 ## Latex
 !*.tex

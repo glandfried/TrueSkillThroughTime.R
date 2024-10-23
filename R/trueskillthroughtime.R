@@ -483,7 +483,7 @@ likelihood_teams <- function(teams,result,p_draw,gr){
 #likelihood_teams = cmpfun(likelihood_teams )
 compute_likelihoods <-  function(teams,result,p_draw){
     gr = graphical_model(teams,result,p_draw)
-    if (length(teams)>2){111
+    if (length(teams)>2){
       lhoods = vector('list', length(teams))
       lht = likelihood_teams(teams,result,p_draw,gr)
       m_t_ft = lht$messages

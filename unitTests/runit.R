@@ -1,5 +1,7 @@
-devtools::load_all("../TrueSkillThroughTime.R")
+#devtools::load_all("../TrueSkillThroughTime.R")
+devtools::load_all("R/trueskillthroughtime.R")
 library(profvis)
+library(microbenchmark)
 if (!require("RUnit", quietly = TRUE)) {
   stop("Package Runit is not found.") 
 }
@@ -321,6 +323,11 @@ test_learning_curve = function(){
     checkTrue(lc$aj[[2]][[1]] == 7)
     checkTrue(isapprox(lc$aj[[2]][[2]],Gaussian(24.999,5.420),1e-3))
     checkTrue(isapprox(lc$cj[[2]][[2]],Gaussian(25.001,5.420),13-3))
+}
+test_time_gaussian = function(){
+    N12 = Gaussian(1,2)
+    print(microbenchmark(N01+N12, times=100, unit="s"))
+    print(N01)
 }
 
 

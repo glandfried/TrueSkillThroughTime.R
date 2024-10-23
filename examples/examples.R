@@ -2,6 +2,8 @@ library(TrueSkillThroughTime)
 library(microbenchmark)
 library(hash)
 
+Rprof("profile1.out", line.profiling=TRUE)
+
 print("Code 1")
 mu = 0.0; sigma = 6.0; beta = 1.0; gamma = 0.03; p_draw = 0.0
 
@@ -77,3 +79,5 @@ h = History(composition, results, times, priors, gamma=0.015)
 #microbenchmark(h$convergence(iterations=1), times=1, unit="s")
 lc_a = h$learning_curves()$a; mu = c()
 for(tp in lc_a){mu = c(mu,tp[[2]]@mu)}
+
+Rprof(NULL)

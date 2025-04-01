@@ -1,0 +1,16 @@
+bibentry(bibtype = "Article",
+  title        = "{TrueSkill} {T}hrough {T}ime: Reliable Initial Skill Estimates and Historical Comparability with {Julia}, {Python}, and {R}",
+  author       = c(person(given = "Gustavo",
+                          family = "Landfried"),
+                   person(given = "Esteban",
+                          family = "Mocskos",
+                          email = "emocskos@dc.uba.ar")),
+  journal      = "Journal of Statistical Software",
+  year         = "2025",
+  volume       = "112",
+  number       = "6",
+  pages        = "1--41",
+  doi          = "10.18637/jss.v112.i06",
+  header       = "To cite TrueSkillThroughTime in publications use:"
+)
+

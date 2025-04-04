@@ -7,9 +7,8 @@ Authors@R: person(given="Gustavo", family="Landfried", email = "gustavolandfried
 Maintainer: Gustavo Landfried <gustavolandfried@gmail.com>
 Description:
     Most estimators implemented by the video game industry cannot obtain reliable initial estimates nor guarantee comparability between distant estimates. TrueSkill Through Time solves all these problems by modeling the entire history of activities using a single Bayesian network allowing the information to propagate correctly throughout the system. This algorithm requires only a few iterations to converge, allowing millions of observations to be analyzed using any low-end computer.
-    The core ideas implemented in this project were developed by Dangauthier P, Herbrich R, Minka T, Graepel T (2007). "Trueskill through time: Revisiting the history of chess." <https://dl.acm.org/doi/10.5555/2981562.2981605>.
-References:
     Landfried G, Mocskos E (2025). "TrueSkill Through Time: Reliable Initial Skill Estimates and Historical Comparability with Julia, Python, and R." <doi:10.18637/jss.v112.i06>.
+    The core ideas implemented in this project were developed by Dangauthier P, Herbrich R, Minka T, Graepel T (2007). "Trueskill through time: Revisiting the history of chess." <https://dl.acm.org/doi/10.5555/2981562.2981605>.
 License: GPL (>= 3)
 Imports: hash, methods, stats
 Encoding: UTF-8

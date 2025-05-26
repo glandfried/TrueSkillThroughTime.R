@@ -12,6 +12,21 @@ Then just
 
 	library(TrueSkillThroughTime)
 
+## Documentation
+
+Read the [paper published in the Journal of Statistical Software](https://www.jstatsoft.org/index.php/jss/article/view/v112i06/4680) with the technical documentation.
+
+```
+@article{landfried2025-learning,
+  title={TrueSkill Through Time: Reliable Initial Skill Estimates and Historical Comparability with Julia, Python, and R},
+  author={Landfried, Gustavo and Mocskos, Esteban},
+  journal={Journal of Statistical Software},
+  volume={112},
+  pages={1--41},
+  year={2025}
+}
+```
+
 ## Summary
 
 Most estimators implemented by the video game industry cannot obtain reliable initial estimates nor guarantee comparability between distant estimates. TrueSkill Through Time solves all these problems by modeling the entire history of activities using a single Bayesian network allowing the information to propagate correctly throughout the system. This algorithm requires only a few iterations to converge, allowing millions of observations to be analyzed using any low-end computer.
